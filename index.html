@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Customization Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Character Creator</h1>
+        
+        <div class="main-content">
+            <div class="character-display">
+                <div class="character">
+                    <!-- Hair Layer -->
+                    <div class="character-part hair" id="hair"></div>
+                    <div class="character-part hat" id="hat"></div>
+                    
+                    <!-- Head -->
+                    <div class="character-part head" id="head">
+                        <div class="face-features">
+                            <div class="eyes" id="eyes"></div>
+                            <div class="nose" id="nose"></div>
+                            <div class="mouth" id="mouth"></div>
+                        </div>
+                        <div class="character-part glasses" id="glasses"></div>
+                    </div>
+                    
+                    <!-- Neck -->
+                    <div class="character-part neck" id="neck"></div>
+                    <div class="character-part jewelry" id="jewelry"></div>
+                    
+                    <!-- Torso -->
+                    <div class="character-part torso" id="torso">
+                        <div class="character-part top" id="top"></div>
+                        <div class="arms">
+                            <div class="arm left-arm"></div>
+                            <div class="arm right-arm"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lower Body -->
+                    <div class="character-part lower-body" id="lower-body">
+                        <div class="character-part bottom" id="bottom"></div>
+                        <div class="legs">
+                            <div class="leg left-leg"></div>
+                            <div class="leg right-leg"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Feet -->
+                    <div class="character-part feet" id="feet">
+                        <div class="character-part shoes" id="shoes"></div>
+                    </div>
+                    
+                    <!-- Accessories -->
+                    <div class="character-part bag" id="bag"></div>
+                </div>
+            </div>
+            
+            <div class="customization-panel">
+                <div class="category-tabs">
+                    <button class="tab-button active" data-category="hair">Hair</button>
+                    <button class="tab-button" data-category="eyes">Eyes</button>
+                    <button class="tab-button" data-category="top">Tops</button>
+                    <button class="tab-button" data-category="bottom">Bottoms</button>
+                    <button class="tab-button" data-category="shoes">Shoes</button>
+                    <button class="tab-button" data-category="glasses">Glasses</button>
+                    <button class="tab-button" data-category="hat">Hats</button>
+                    <button class="tab-button" data-category="jewelry">Jewelry</button>
+                    <button class="tab-button" data-category="bag">Bags</button>
+                </div>
+                
+                <div class="options-grid" id="options-grid">
+                    <!-- Options will be populated by JavaScript -->
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="randomize-btn">Randomize</button>
+                    <button id="reset-btn">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

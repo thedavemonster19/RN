@@ -1,0 +1,581 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    max-width: 1200px;
+    width: 90%;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-content {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+}
+
+.character-display {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 30px;
+    min-height: 650px;
+    box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* ANATOMICALLY CORRECT HUMAN CHARACTER */
+/* Using 8-head proportions: Head = 1 unit, Body = 8 units total */
+.character {
+    position: relative;
+    width: 120px;   /* Base width for proportions */
+    height: 560px;  /* 8 head units * 70px per unit */
+    transform-style: preserve-3d;
+    perspective: 1000px;
+}
+
+.character-part {
+    position: absolute;
+    transition: all 0.3s ease;
+}
+
+/* HEAD - 1 head unit (70px) */
+.head {
+    top: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;     /* Proper head width */
+    height: 70px;    /* 1 head unit */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 50%, #e8927c 100%);
+    border-radius: 25px 25px 20px 20px;  /* More realistic head shape */
+    box-shadow: 
+        inset -3px -5px 10px rgba(0,0,0,0.15),
+        inset 3px 3px 8px rgba(255,255,255,0.4),
+        0 3px 10px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.face-features {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* REALISTIC FACIAL FEATURES */
+.eyes {
+    position: absolute;
+    top: 25px;      /* About 1/3 down from top of head */
+    left: 8px;
+    width: 34px;    /* Fits within head width */
+    height: 8px;
+    z-index: 12;
+}
+
+.nose {
+    position: absolute;
+    top: 35px;      /* Between eyes and mouth */
+    left: 22px;     /* Centered */
+    width: 6px;
+    height: 8px;
+    background: linear-gradient(135deg, #e8927c 0%, #d4795f 100%);
+    border-radius: 3px;
+    box-shadow: 
+        inset -1px -1px 2px rgba(0,0,0,0.2),
+        1px 1px 2px rgba(255,255,255,0.5);
+    z-index: 12;
+}
+
+.mouth {
+    position: absolute;
+    top: 48px;      /* Lower third of head */
+    left: 18px;     /* Centered */
+    width: 14px;
+    height: 6px;
+    background: #d4795f;
+    border-radius: 7px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    z-index: 12;
+}
+
+/* HAIR - Fits head proportionally */
+.hair {
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 55px;    /* Slightly wider than head */
+    height: 55px;   /* Covers top of head */
+    border-radius: 27px 27px 15px 15px;
+    box-shadow: 
+        0 3px 10px rgba(0,0,0,0.3),
+        inset -3px -3px 8px rgba(0,0,0,0.2),
+        inset 3px 3px 8px rgba(255,255,255,0.3);
+    z-index: 20;
+}
+
+/* NECK - Proportional to head */
+.neck {
+    top: 65px;      /* Just below head */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;    /* Narrower than head */
+    height: 20px;   /* Short neck */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 100%);
+    border-radius: 9px;
+    box-shadow: 
+        inset -2px -2px 4px rgba(0,0,0,0.1),
+        0 2px 5px rgba(0,0,0,0.2);
+    z-index: 8;
+}
+
+/* TORSO - 2.5 head units (175px) from shoulders to waist */
+.torso {
+    top: 80px;      /* Below neck */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;    /* Shoulder width */
+    height: 175px;  /* 2.5 head units */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 100%);
+    border-radius: 30px 30px 25px 25px;
+    box-shadow: 
+        0 5px 15px rgba(0,0,0,0.2),
+        inset -5px -5px 12px rgba(0,0,0,0.1),
+        inset 5px 5px 12px rgba(255,255,255,0.3);
+    z-index: 6;
+}
+
+/* ARMS - Realistic arm proportions */
+.arms {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.arm {
+    position: absolute;
+    width: 14px;    /* Realistic arm thickness */
+    height: 140px;  /* Reaches to mid-thigh */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 100%);
+    border-radius: 7px;
+    box-shadow: 
+        0 3px 8px rgba(0,0,0,0.2),
+        inset -2px -2px 6px rgba(0,0,0,0.1);
+    z-index: 5;
+}
+
+.left-arm {
+    top: 10px;      /* Start from shoulder area */
+    left: -18px;    /* Positioned at shoulder */
+    transform: rotate(-8deg);  /* Natural arm angle */
+}
+
+.right-arm {
+    top: 10px;
+    right: -18px;
+    transform: rotate(8deg);
+}
+
+/* LOWER BODY - 1.5 head units (105px) from waist to crotch */
+.lower-body {
+    top: 250px;     /* Below torso */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 55px;    /* Hip width */
+    height: 105px;  /* 1.5 head units */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 100%);
+    border-radius: 27px 27px 12px 12px;
+    box-shadow: 
+        0 5px 15px rgba(0,0,0,0.2),
+        inset -4px -4px 10px rgba(0,0,0,0.1),
+        inset 4px 4px 10px rgba(255,255,255,0.3);
+    z-index: 4;
+}
+
+/* LEGS - 3 head units (210px) from crotch to floor */
+.legs {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.leg {
+    position: absolute;
+    width: 16px;    /* Realistic leg thickness */
+    height: 210px;  /* 3 head units */
+    background: linear-gradient(135deg, #fdbcb4 0%, #f4a79a 100%);
+    border-radius: 8px;
+    box-shadow: 
+        0 3px 10px rgba(0,0,0,0.2),
+        inset -2px -2px 6px rgba(0,0,0,0.1);
+    z-index: 3;
+}
+
+.left-leg {
+    top: 80px;      /* Start from lower body */
+    left: 12px;     /* Hip width spacing */
+}
+
+.right-leg {
+    top: 80px;
+    right: 12px;
+}
+
+/* FEET - Proportional to body */
+.feet {
+    top: 540px;     /* At bottom of character */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 20px;
+    z-index: 2;
+}
+
+/* CLOTHING - Fitted to anatomical proportions */
+.top {
+    top: 0px;
+    left: 0px;
+    width: 60px;    /* Matches torso width */
+    height: 175px;  /* Matches torso height */
+    border-radius: 30px 30px 25px 25px;
+    box-shadow: 
+        0 3px 10px rgba(0,0,0,0.2),
+        inset -3px -3px 6px rgba(0,0,0,0.1),
+        inset 3px 3px 6px rgba(255,255,255,0.2);
+    z-index: 15;
+}
+
+.bottom {
+    top: 0px;
+    left: 0px;
+    width: 55px;    /* Matches lower body width */
+    height: 105px;  /* Matches lower body height */
+    border-radius: 27px 27px 12px 12px;
+    box-shadow: 
+        0 3px 10px rgba(0,0,0,0.2),
+        inset -3px -3px 6px rgba(0,0,0,0.1),
+        inset 3px 3px 6px rgba(255,255,255,0.2);
+    z-index: 14;
+}
+
+.shoes {
+    top: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 45px;    /* Realistic foot size */
+    height: 15px;   /* Shoe thickness */
+    border-radius: 22px;
+    box-shadow: 
+        0 2px 8px rgba(0,0,0,0.3),
+        inset -2px -2px 4px rgba(0,0,0,0.2),
+        inset 2px 2px 4px rgba(255,255,255,0.3);
+    z-index: 16;
+}
+
+/* ACCESSORIES - Proportional to head size */
+.glasses {
+    top: 20px;      /* Eye level */
+    left: 6px;
+    width: 38px;    /* Spans across eyes */
+    height: 15px;
+    z-index: 25;
+}
+
+.hat {
+    top: -15px;     /* Above hair */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;    /* Slightly larger than hair */
+    height: 25px;
+    border-radius: 30px 30px 10px 10px;
+    box-shadow: 
+        0 5px 12px rgba(0,0,0,0.3),
+        inset -3px -3px 8px rgba(0,0,0,0.2),
+        inset 3px 3px 8px rgba(255,255,255,0.3);
+    z-index: 30;
+}
+
+.jewelry {
+    top: 85px;      /* Chest area */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: 
+        0 2px 6px rgba(0,0,0,0.3),
+        inset -2px -2px 3px rgba(0,0,0,0.3),
+        inset 2px 2px 3px rgba(255,255,255,0.8);
+    z-index: 18;
+}
+
+.bag {
+    top: 180px;     /* Hip area */
+    right: -25px;   /* Hanging at side */
+    width: 22px;
+    height: 30px;
+    border-radius: 3px;
+    box-shadow: 
+        0 3px 10px rgba(0,0,0,0.3),
+        inset -2px -2px 6px rgba(0,0,0,0.2),
+        inset 2px 2px 6px rgba(255,255,255,0.2);
+    z-index: 12;
+}
+
+/* STYLE DEFINITIONS - Enhanced for realism */
+/* Hair styles with natural textures */
+.hair-style-1 { background: linear-gradient(135deg, #8B4513 0%, #654321 50%, #3d2810 100%); }
+.hair-style-2 { background: linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%); }
+.hair-style-3 { background: linear-gradient(135deg, #000 0%, #333 50%, #666 100%); }
+.hair-style-4 { background: linear-gradient(135deg, #FF4500 0%, #CC3300 50%, #990000 100%); }
+.hair-style-5 { background: linear-gradient(135deg, #4B0082 0%, #301934 50%, #1a0f1d 100%); }
+.hair-style-6 { background: linear-gradient(135deg, #A0522D 0%, #8B4513 50%, #654321 100%); }
+.hair-style-7 { background: linear-gradient(135deg, #DC143C 0%, #B22222 50%, #8B0000 100%); }
+.hair-style-8 { background: linear-gradient(135deg, #32CD32 0%, #228B22 50%, #006400 100%); }
+.hair-style-9 { background: linear-gradient(135deg, #FF1493 0%, #DC143C 50%, #B22222 100%); }
+.hair-style-10 { background: linear-gradient(135deg, #00CED1 0%, #008B8B 50%, #004d4d 100%); }
+
+/* Eye styles with realistic proportions */
+.eyes-style-1 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 8"><ellipse cx="8" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><ellipse cx="26" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><circle cx="8" cy="4" r="2" fill="%23654321"/><circle cx="26" cy="4" r="2" fill="%23654321"/><circle cx="8.5" cy="3.5" r="0.5" fill="white"/><circle cx="26.5" cy="3.5" r="0.5" fill="white"/></svg>'); }
+.eyes-style-2 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 8"><ellipse cx="8" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><ellipse cx="26" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><circle cx="8" cy="4" r="2" fill="%23003d82"/><circle cx="26" cy="4" r="2" fill="%23003d82"/><circle cx="8.5" cy="3.5" r="0.5" fill="white"/><circle cx="26.5" cy="3.5" r="0.5" fill="white"/></svg>'); }
+.eyes-style-3 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 8"><ellipse cx="8" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><ellipse cx="26" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><circle cx="8" cy="4" r="2" fill="%23228B22"/><circle cx="26" cy="4" r="2" fill="%23228B22"/><circle cx="8.5" cy="3.5" r="0.5" fill="white"/><circle cx="26.5" cy="3.5" r="0.5" fill="white"/></svg>'); }
+.eyes-style-4 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 8"><ellipse cx="8" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><ellipse cx="26" cy="4" rx="6" ry="3" fill="white" stroke="black" stroke-width="0.5"/><circle cx="8" cy="4" r="2" fill="%23B8860B"/><circle cx="26" cy="4" r="2" fill="%23B8860B"/><circle cx="8.5" cy="3.5" r="0.5" fill="white"/><circle cx="26.5" cy="3.5" r="0.5" fill="white"/></svg>'); }
+.eyes-style-5 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 8"><path d="M2 4 Q8 1 14 4 Q8 7 2 4" fill="black"/><path d="M20 4 Q26 1 32 4 Q26 7 20 4" fill="black"/></svg>'); }
+
+/* Clothing styles with realistic fabric appearance */
+.top-style-1 { background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 50%, #FF3742 100%); }
+.top-style-2 { background: linear-gradient(135deg, #4ECDC4 0%, #26de81 50%, #20bf6b 100%); }
+.top-style-3 { background: linear-gradient(135deg, #45B7D1 0%, #3867d6 50%, #2f3542 100%); }
+.top-style-4 { background: linear-gradient(135deg, #96CEB4 0%, #6c5ce7 50%, #5f27cd 100%); }
+.top-style-5 { background: linear-gradient(135deg, #FECA57 0%, #ff9ff3 50%, #f368e0 100%); }
+.top-style-6 { background: linear-gradient(135deg, #A29BFE 0%, #6c5ce7 50%, #5f27cd 100%); }
+.top-style-7 { background: linear-gradient(135deg, #FD79A8 0%, #e84393 50%, #d63031 100%); }
+.top-style-8 { background: linear-gradient(135deg, #00B894 0%, #00a085 50%, #00695c 100%); }
+.top-style-9 { background: linear-gradient(135deg, #E17055 0%, #d63031 50%, #b71c1c 100%); }
+.top-style-10 { background: linear-gradient(135deg, #0984e3 0%, #74b9ff 50%, #0652DD 100%); }
+.top-style-11 { background: repeating-linear-gradient(45deg, #FF6B6B 0px, #FF6B6B 6px, #FFF 6px, #FFF 12px); }
+.top-style-12 { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #5f27cd 100%); }
+
+.bottom-style-1 { background: linear-gradient(135deg, #2C3E50 0%, #34495E 50%, #2c3e50 100%); }
+.bottom-style-2 { background: linear-gradient(135deg, #8E44AD 0%, #9B59B6 50%, #8e44ad 100%); }
+.bottom-style-3 { background: linear-gradient(135deg, #27AE60 0%, #2ECC71 50%, #27ae60 100%); }
+.bottom-style-4 { background: linear-gradient(135deg, #F39C12 0%, #E67E22 50%, #d35400 100%); }
+.bottom-style-5 { background: linear-gradient(135deg, #E74C3C 0%, #C0392B 50%, #a93226 100%); }
+.bottom-style-6 { background: linear-gradient(135deg, #34495E 0%, #2C3E50 50%, #273746 100%); }
+.bottom-style-7 { background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 50%, #7d3c98 100%); }
+.bottom-style-8 { background: linear-gradient(135deg, #1ABC9C 0%, #16A085 50%, #138d75 100%); }
+.bottom-style-9 { background: linear-gradient(135deg, #F1C40F 0%, #F39C12 50%, #d68910 100%); }
+.bottom-style-10 { background: linear-gradient(135deg, #E67E22 0%, #D35400 50%, #ba4a00 100%); }
+.bottom-style-11 { background: linear-gradient(135deg, #95A5A6 0%, #7F8C8D 50%, #566573 100%); }
+.bottom-style-12 { background: repeating-linear-gradient(90deg, #2C3E50 0px, #2C3E50 3px, #34495E 3px, #34495E 6px); }
+
+.shoes-style-1 { background: linear-gradient(135deg, #000 0%, #333 50%, #666 100%); }
+.shoes-style-2 { background: linear-gradient(135deg, #8B4513 0%, #654321 50%, #3e2723 100%); }
+.shoes-style-3 { background: linear-gradient(135deg, #FF0000 0%, #CC0000 50%, #990000 100%); }
+.shoes-style-4 { background: linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 50%, #E0E0E0 100%); border: 1px solid #333; }
+.shoes-style-5 { background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%); }
+.shoes-style-6 { background: linear-gradient(135deg, #4B0082 0%, #301934 50%, #1a0f1d 100%); }
+.shoes-style-7 { background: linear-gradient(135deg, #FF69B4 0%, #FF1493 50%, #DC143C 100%); }
+.shoes-style-8 { background: linear-gradient(135deg, #00CED1 0%, #008B8B 50%, #006666 100%); }
+.shoes-style-9 { background: linear-gradient(135deg, #32CD32 0%, #228B22 50%, #006400 100%); }
+.shoes-style-10 { background: linear-gradient(135deg, #FF4500 0%, #CC3300 50%, #990000 100%); }
+
+/* Glasses properly sized for face */
+.glasses-style-1 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 15"><rect x="2" y="4" width="14" height="8" fill="rgba(255,255,255,0.1)" stroke="black" stroke-width="1.5" rx="2"/><rect x="22" y="4" width="14" height="8" fill="rgba(255,255,255,0.1)" stroke="black" stroke-width="1.5" rx="2"/><line x1="16" y1="8" x2="22" y2="8" stroke="black" stroke-width="1.5"/></svg>'); }
+.glasses-style-2 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 15"><circle cx="9" cy="8" r="6" fill="rgba(139,69,19,0.3)" stroke="red" stroke-width="1.5"/><circle cx="29" cy="8" r="6" fill="rgba(139,69,19,0.3)" stroke="red" stroke-width="1.5"/><line x1="15" y1="8" x2="23" y2="8" stroke="red" stroke-width="1.5"/></svg>'); }
+.glasses-style-3 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 15"><circle cx="9" cy="8" r="6" fill="rgba(255,215,0,0.4)" stroke="gold" stroke-width="2"/><circle cx="29" cy="8" r="6" fill="rgba(255,215,0,0.4)" stroke="gold" stroke-width="2"/><line x1="15" y1="8" x2="23" y2="8" stroke="gold" stroke-width="2"/></svg>'); }
+.glasses-style-4 { background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 15"><path d="M3 6 L15 6 Q16 4 16 8 Q16 12 15 10 L3 10 Q2 8 3 6" fill="rgba(128,0,128,0.3)" stroke="purple" stroke-width="1.5"/><path d="M22 6 L34 6 Q35 4 35 8 Q35 12 34 10 L22 10 Q21 8 22 6" fill="rgba(128,0,128,0.3)" stroke="purple" stroke-width="1.5"/><line x1="16" y1="8" x2="22" y2="8" stroke="purple" stroke-width="1.5"/></svg>'); }
+
+/* Hat styles proportional to head */
+.hat-style-1 { background: linear-gradient(135deg, #8B4513 0%, #654321 50%, #3e2723 100%); }
+.hat-style-2 { background: linear-gradient(135deg, #FF0000 0%, #CC0000 50%, #990000 100%); }
+.hat-style-3 { background: linear-gradient(135deg, #000080 0%, #000040 50%, #000020 100%); }
+.hat-style-4 { background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%); }
+.hat-style-5 { background: linear-gradient(135deg, #FF69B4 0%, #FF1493 50%, #DC143C 100%); }
+.hat-style-6 { background: linear-gradient(135deg, #00CED1 0%, #008B8B 50%, #006666 100%); }
+.hat-style-7 { background: linear-gradient(45deg, #FF0000 0%, #00FF00 33%, #0000FF 66%, #FF0000 100%); }
+
+/* Jewelry proportional to body */
+.jewelry-style-1 { background: radial-gradient(circle, #FFD700 0%, #FFA500 50%, #FF8C00 100%); }
+.jewelry-style-2 { background: radial-gradient(circle, #C0C0C0 0%, #A0A0A0 50%, #808080 100%); }
+.jewelry-style-3 { background: radial-gradient(circle, #FF1493 0%, #DC143C 50%, #B22222 100%); }
+.jewelry-style-4 { background: radial-gradient(circle, #00CED1 0%, #008B8B 50%, #006666 100%); }
+.jewelry-style-5 { background: radial-gradient(circle, #32CD32 0%, #228B22 50%, #006400 100%); }
+.jewelry-style-6 { background: radial-gradient(circle, #FFD700 0%, #FF1493 50%, #FFD700 100%); }
+
+/* Bag styles */
+.bag-style-1 { background: linear-gradient(135deg, #8B4513 0%, #654321 50%, #3e2723 100%); }
+.bag-style-2 { background: linear-gradient(135deg, #000 0%, #333 50%, #666 100%); }
+.bag-style-3 { background: linear-gradient(135deg, #FF69B4 0%, #FF1493 50%, #DC143C 100%); }
+.bag-style-4 { background: linear-gradient(135deg, #4B0082 0%, #301934 50%, #1a0f1d 100%); }
+.bag-style-5 { background: linear-gradient(135deg, #FF4500 0%, #CC3300 50%, #990000 100%); }
+.bag-style-6 { background: linear-gradient(135deg, #00CED1 0%, #008B8B 50%, #006666 100%); }
+.bag-style-7 { background: repeating-linear-gradient(45deg, #FF69B4 0px, #FF69B4 3px, #FFF 3px, #FFF 6px); }
+
+/* CUSTOMIZATION PANEL */
+.customization-panel {
+    flex: 1;
+    background: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 10px 16px;
+    border: 2px solid #667eea;
+    background: transparent;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    color: #667eea;
+    font-size: 12px;
+}
+
+.tab-button:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.tab-button.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    gap: 12px;
+    margin-bottom: 30px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.option-item {
+    width: 75px;
+    height: 75px;
+    border: 3px solid #ddd;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.option-item:hover {
+    border-color: #667eea;
+    transform: scale(1.08);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.option-item.selected {
+    border-color: #667eea;
+    background-color: rgba(102, 126, 234, 0.1);
+    transform: scale(1.1);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.action-buttons button {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+#randomize-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+#randomize-btn:hover {
+    background: linear-gradient(135deg, #218838, #1db584);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+}
+
+#reset-btn {
+    background: linear-gradient(135deg, #dc3545, #e74c3c);
+    color: white;
+}
+
+#reset-btn:hover {
+    background: linear-gradient(135deg, #c82333, #d63031);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .character {
+        width: 100px;
+        height: 460px;
+        transform: scale(0.85);
+    }
+    
+    .category-tabs {
+        justify-content: center;
+    }
+    
+    .tab-button {
+        font-size: 11px;
+        padding: 8px 12px;
+    }
+}
