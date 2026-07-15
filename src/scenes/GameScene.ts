@@ -162,8 +162,8 @@ export class GameScene extends Phaser.Scene {
     // The find-help fades a little each milestone, so higher tiers lean more on
     // luck — but never to zero, there's always a slight nudge toward the wanted
     // food (current, then next).
-    const curChance = Math.max(0.06, 0.18 - m * 0.011);
-    const nextChance = curChance + Math.max(0.03, 0.12 - m * 0.007);
+    const curChance = Math.max(0.04, 0.14 - m * 0.012);
+    const nextChance = curChance + Math.max(0.02, 0.09 - m * 0.008);
     const r = Math.random();
     if (r < curChance && cur.id !== MEGA.id) return cur;
     if (r < nextChance && nxt.id !== MEGA.id) return nxt;
