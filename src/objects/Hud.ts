@@ -22,7 +22,7 @@ export class Hud {
   private warnText: Phaser.GameObjects.Text;
   private bars: Phaser.GameObjects.Graphics;
   private bubbleDisc: Phaser.GameObjects.Image;
-  private nextDisc: Phaser.GameObjects.Image;
+  private queueDiscs: Phaser.GameObjects.Image[] = [];
 
   /** Seconds left before overflow ends the game, or null when safe. */
   overflowCountdown: number | null = null;
@@ -77,29 +77,31 @@ export class Hud {
 
     this.bars = scene.add.graphics().setDepth(depth);
 
-    // Craving preview panel (right side) — what it wants now and next,
-    // Tetris-style, kept clear of the monster as it grows.
+    // Craving preview panel (right side) — what it wants now and the queue
+    // ahead, Tetris-style, so the player can plan digs several moves out.
     const px = GAME.WIDTH - 34;
     const panel = scene.add.graphics().setDepth(depth - 1);
     panel.fillStyle(0xffffff, 0.06);
-    panel.fillRoundedRect(px - 26, 108, 52, 108, 12);
+    panel.fillRoundedRect(px - 26, 100, 52, 208, 12);
     scene.add
-      .text(px, 118, "WANTS", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(px, 110, "WANTS", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.bubbleDisc = scene.add
-      .image(px, 142, "food")
+      .image(px, 134, "food")
       .setTint(state.craving.color)
       .setDepth(depth);
     scene.add
-      .text(px, 172, "NEXT", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(px, 162, "NEXT", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
-    this.nextDisc = scene.add
-      .image(px, 193, "food")
-      .setScale(0.6)
-      .setTint(state.nextCraving.color)
-      .setDepth(depth);
+    this.queueDiscs = [186, 218, 250].map((qy, i) =>
+      scene.add
+        .image(px, qy, "food")
+        .setScale(0.62)
+        .setTint(state.cravingQueue[i].color)
+        .setDepth(depth)
+    );
   }
 
   update(): void {
@@ -107,18 +109,27 @@ export class Hud {
     this.sizeText.setText(`Growing to: ${milestoneName(s.milestone)}`);
     this.scoreText.setText(`${s.score}`);
     this.multText.setText(`x${s.moodMult.toFixed(1)}`);
-    this.comboText.setText(s.combo >= 2 ? `craving streak x${s.combo}` : "");
+    this.comboText.setText(
+      s.combo >= 2
+        ? `streak x${s.combo}  ·  ×${s.comboMult.toFixed(1)} score${
+            s.streakShield ? "  🛡" : ""
+          }`
+        : ""
+    );
     // Show the big treat as a larger gold disc when it's what's wanted.
     const wantMega = s.craving.id === MEGA.id;
     this.bubbleDisc
       .setTexture(wantMega ? "mega" : "food")
       .setScale(wantMega ? 0.82 : 1)
       .setTint(s.craving.color);
-    const nextMega = s.nextCraving.id === MEGA.id;
-    this.nextDisc
-      .setTexture(nextMega ? "mega" : "food")
-      .setScale(nextMega ? 0.5 : 0.6)
-      .setTint(s.nextCraving.color);
+    s.cravingQueue.forEach((c, i) => {
+      const d = this.queueDiscs[i];
+      if (!d) return;
+      const m = c.id === MEGA.id;
+      d.setTexture(m ? "mega" : "food")
+        .setScale(m ? 0.5 : 0.62)
+        .setTint(c.color);
+    });
     if (this.overflowCountdown !== null) {
       this.warnText
         .setText(`Overflow! Clear the bin — ${this.overflowCountdown}`)

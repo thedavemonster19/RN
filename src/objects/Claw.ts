@@ -105,6 +105,32 @@ export class Claw {
     return this.state === "holding";
   }
 
+  /** The piece currently held (for stashing), or null. */
+  heldFood(): Food | null {
+    return this.state === "holding" ? this.held : null;
+  }
+
+  /** Fly the held piece to a target (the pocket) and finish the cycle. */
+  stashTo(tx: number, ty: number): void {
+    if (this.state !== "holding" || !this.heldSprite) return;
+    this.state = "busy";
+    const spr = this.heldSprite;
+    this.held = null;
+    this.heldSprite = undefined;
+    this.scene.tweens.add({
+      targets: spr,
+      x: tx,
+      y: ty,
+      scale: 0.5,
+      duration: 260,
+      ease: "Quad.easeIn",
+      onComplete: () => {
+        spr.destroy();
+        this.finishCycle();
+      },
+    });
+  }
+
   /** Feed the held piece to the monster. */
   feedHeld(): void {
     if (this.state !== "holding" || !this.held) return;

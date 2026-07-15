@@ -5,8 +5,10 @@ import { MEGA, FOOD_TYPES, FoodType } from "../data/foods";
 import { Claw } from "../objects/Claw";
 import { Monster } from "../objects/Monster";
 import { Hud } from "../objects/Hud";
-import { GameState, GameOverReason } from "../systems/GameState";
+import { GameState, GameOverReason, FeedResult } from "../systems/GameState";
 import { milestoneName, currentSize } from "../data/milestones";
+
+const FONT = "system-ui, -apple-system, sans-serif";
 
 export class GameScene extends Phaser.Scene {
   private pile!: FoodPile;
@@ -15,6 +17,9 @@ export class GameScene extends Phaser.Scene {
   private hud!: Hud;
   private state!: GameState;
   private choiceUI!: Phaser.GameObjects.Container;
+  private pocketDisc!: Phaser.GameObjects.Image;
+  private static POCKET_X = 34;
+  private static POCKET_Y = 156;
   private over = false;
   private overflowArmed = false;
   private inputReady = false;
@@ -102,6 +107,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.createChoiceButtons();
+    this.createPocketUI();
     this.hud.update();
   }
 
@@ -109,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     if (this.over) return;
     this.claw.update(delta);
     this.choiceUI.setVisible(this.claw.hasHeld());
+    this.refreshPocket();
 
     // Overflow: the moment settled food crosses the line, start a 3s grace
     // countdown. Clear the pile back under the line to cancel it.
@@ -128,14 +135,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleFeed(food: Food): void {
-    const result = this.state.feed(food);
+    this.applyFeedResult(this.state.feed(food), food.type.color);
+  }
+
+  /** Feed the stashed food (free — no grab, no refill). */
+  private eatFromPocket(): void {
+    const type = this.state.pocket;
+    if (this.over || !type) return;
+    const result = this.state.feedFromPocket();
+    if (result) this.applyFeedResult(result, type.color);
+  }
+
+  /** Show the pocketed food in its slot (tinted), or hide the slot. */
+  private refreshPocket(): void {
+    const p = this.state.pocket;
+    this.pocketDisc.setVisible(!!p);
+    if (p) {
+      const mega = p.id === MEGA.id;
+      this.pocketDisc
+        .setTexture(mega ? "mega" : "food")
+        .setScale(mega ? 0.7 : 1)
+        .setTint(p.color);
+    }
+  }
+
+  private applyFeedResult(result: FeedResult, color: number): void {
     this.monster.eat();
     this.monster.setMood(this.state.mood);
-    this.burst(this.monster.mouthX, this.monster.mouthY, food.type.color, 12);
+    this.burst(this.monster.mouthX, this.monster.mouthY, color, 12);
 
     if (result.craved) {
-      // The higher the craving streak, the more the monster gobbles (capped),
-      // Gobble = current drop count + streak: it scales with milestone (more in,
+      // Gobble = current drop count + streak: scales with milestone (more in,
       // more out, so cravings keep the bin maintainable) and rewards streaks.
       const n = Math.min(
         this.dropCount() + this.state.combo,
@@ -177,51 +207,80 @@ export class GameScene extends Phaser.Scene {
     return Phaser.Utils.Array.GetRandom(FOOD_TYPES);
   }
 
-  /** Feed / Toss buttons, shown only while the claw is holding a piece. */
+  /** Feed / Stash / Toss buttons, shown only while the claw holds a piece. */
   private createChoiceButtons(): void {
-    const F = "system-ui, -apple-system, sans-serif";
     const cx = GAME.WIDTH / 2;
     const y = 502;
     const hint = this.add
-      .text(cx, y - 46, "Feed the monster — or toss to dig", {
-        fontFamily: F,
+      .text(cx, y - 44, "Feed · stash for later · or toss to dig", {
+        fontFamily: FONT,
         fontSize: "13px",
         color: "#aeb6e6",
       })
       .setOrigin(0.5);
 
-    const feedBg = this.add
-      .rectangle(cx - 72, y, 128, 54, COLORS.teal, 1)
-      .setStrokeStyle(1, 0xffffff, 0.2)
-      .setInteractive({ useHandCursor: true });
-    feedBg.on("pointerdown", () => this.claw.feedHeld());
-    const feedTxt = this.add
-      .text(cx - 72, y, "Feed", {
-        fontFamily: F,
-        fontSize: "20px",
-        fontStyle: "500",
-        color: "#06251f",
-      })
-      .setOrigin(0.5);
+    const mk = (x: number, label: string, bg: number, fg: string, tap: () => void) => {
+      const rect = this.add
+        .rectangle(x, y, 108, 52, bg, 1)
+        .setStrokeStyle(1, 0xffffff, 0.2)
+        .setInteractive({ useHandCursor: true });
+      rect.on("pointerdown", tap);
+      const txt = this.add
+        .text(x, y, label, {
+          fontFamily: FONT,
+          fontSize: "18px",
+          fontStyle: "500",
+          color: fg,
+        })
+        .setOrigin(0.5);
+      return [rect, txt];
+    };
 
-    const tossBg = this.add
-      .rectangle(cx + 72, y, 128, 54, 0x4a4a55, 1)
-      .setStrokeStyle(1, 0xffffff, 0.2)
-      .setInteractive({ useHandCursor: true });
-    tossBg.on("pointerdown", () => this.claw.tossHeld());
-    const tossTxt = this.add
-      .text(cx + 72, y, "Toss", {
-        fontFamily: F,
-        fontSize: "20px",
-        fontStyle: "500",
-        color: "#eef1ff",
-      })
-      .setOrigin(0.5);
+    const feed = mk(cx - 114, "Feed", COLORS.teal, "#06251f", () =>
+      this.claw.feedHeld()
+    );
+    const stash = mk(cx, "Stash", 0x3a6ea5, "#eef1ff", () => this.stashHeld());
+    const toss = mk(cx + 114, "Toss", 0x4a4a55, "#eef1ff", () =>
+      this.claw.tossHeld()
+    );
 
     this.choiceUI = this.add
-      .container(0, 0, [hint, feedBg, feedTxt, tossBg, tossTxt])
+      .container(0, 0, [hint, ...feed, ...stash, ...toss])
       .setDepth(28)
       .setVisible(false);
+  }
+
+  /** Stash the held piece into the pocket (if empty). */
+  private stashHeld(): void {
+    const f = this.claw.heldFood();
+    if (f && this.state.stash(f.type)) {
+      this.claw.stashTo(GameScene.POCKET_X, GameScene.POCKET_Y + 6);
+    }
+  }
+
+  /** The pocket slot (left side) — tap it to feed the stashed food. */
+  private createPocketUI(): void {
+    const px = GameScene.POCKET_X;
+    const py = GameScene.POCKET_Y;
+    const panel = this.add.graphics().setDepth(19);
+    panel.fillStyle(0xffffff, 0.06);
+    panel.fillRoundedRect(px - 26, py - 30, 52, 74, 12);
+    panel.lineStyle(1.5, 0xffffff, 0.18);
+    panel.strokeCircle(px, py + 8, 15);
+    this.add
+      .text(px, py - 18, "POCKET", {
+        fontFamily: FONT,
+        fontSize: "10px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(20);
+    this.pocketDisc = this.add
+      .image(px, py + 8, "food")
+      .setDepth(21)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.pocketDisc.on("pointerdown", () => this.eatFromPocket());
   }
 
   /** Food dropped per pickup, rising with milestone up to the cap. */
