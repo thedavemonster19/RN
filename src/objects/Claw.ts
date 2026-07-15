@@ -13,7 +13,13 @@ export interface ClawOpts {
   onCycleDone: () => void;
 }
 
-type ClawState = "idle" | "aim" | "descend" | "ascend";
+type ClawState =
+  | "idle"
+  | "aim"
+  | "descend"
+  | "ascend"
+  | "holding" // grabbed a piece, waiting for the player to Feed or Toss
+  | "busy"; // playing a feed/toss animation
 
 const DESCEND_SPEED = 640; // px/s
 const ASCEND_SPEED = 780;
@@ -81,12 +87,56 @@ export class Claw {
       }
       if (this.y <= this.o.railY) {
         this.y = this.o.railY;
-        if (this.held) this.deliver();
-        this.state = "idle";
-        this.o.onCycleDone();
+        if (this.held) {
+          // Hold it up and wait for the player's Feed / Toss choice.
+          this.state = "holding";
+        } else {
+          // Empty dig — still counts as a cycle (a refill drops).
+          this.state = "idle";
+          this.o.onCycleDone();
+        }
       }
     }
     this.draw();
+  }
+
+  /** True while a grabbed piece is waiting for a Feed / Toss decision. */
+  hasHeld(): boolean {
+    return this.state === "holding";
+  }
+
+  /** Feed the held piece to the monster. */
+  feedHeld(): void {
+    if (this.state !== "holding" || !this.held) return;
+    this.state = "busy";
+    this.deliver();
+  }
+
+  /** Toss the held piece away (dig) — no feed, no mood/streak change. */
+  tossHeld(): void {
+    if (this.state !== "holding" || !this.heldSprite) return;
+    this.state = "busy";
+    const spr = this.heldSprite;
+    this.held = null;
+    this.heldSprite = undefined;
+    this.scene.tweens.add({
+      targets: spr,
+      y: spr.y - 130,
+      alpha: 0,
+      scale: 0.4,
+      angle: 220,
+      duration: 320,
+      ease: "Quad.easeIn",
+      onComplete: () => {
+        spr.destroy();
+        this.finishCycle();
+      },
+    });
+  }
+
+  private finishCycle(): void {
+    this.state = "idle";
+    this.o.onCycleDone();
   }
 
   private grab(t: Food): void {
@@ -124,6 +174,7 @@ export class Claw {
       onComplete: () => {
         spr.destroy();
         this.o.onEat(food);
+        this.finishCycle();
       },
     });
   }

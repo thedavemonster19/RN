@@ -14,6 +14,7 @@ export class GameScene extends Phaser.Scene {
   private monster!: Monster;
   private hud!: Hud;
   private state!: GameState;
+  private choiceUI!: Phaser.GameObjects.Container;
   private over = false;
   private overflowArmed = false;
   private inputReady = false;
@@ -86,22 +87,28 @@ export class GameScene extends Phaser.Scene {
       onCycleDone: () => this.dropRefill(),
     });
 
+    // Grab input is blocked while a piece is held (the Feed/Toss buttons take
+    // over) and while game over / not yet ready.
+    const canGrab = () =>
+      !this.over && this.inputReady && !this.claw.hasHeld();
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (!this.over && this.inputReady) this.claw.press(p.x);
+      if (canGrab()) this.claw.press(p.x);
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!this.over && this.inputReady && p.isDown) this.claw.aim(p.x);
+      if (canGrab() && p.isDown) this.claw.aim(p.x);
     });
     this.input.on("pointerup", () => {
-      if (!this.over && this.inputReady) this.claw.release();
+      if (canGrab()) this.claw.release();
     });
 
+    this.createChoiceButtons();
     this.hud.update();
   }
 
   update(time: number, delta: number): void {
     if (this.over) return;
     this.claw.update(delta);
+    this.choiceUI.setVisible(this.claw.hasHeld());
 
     // Overflow: the moment settled food crosses the line, start a 3s grace
     // countdown. Clear the pile back under the line to cancel it.
@@ -168,6 +175,53 @@ export class GameScene extends Phaser.Scene {
     if (r < curChance && cur.id !== MEGA.id) return cur;
     if (r < nextChance && nxt.id !== MEGA.id) return nxt;
     return Phaser.Utils.Array.GetRandom(FOOD_TYPES);
+  }
+
+  /** Feed / Toss buttons, shown only while the claw is holding a piece. */
+  private createChoiceButtons(): void {
+    const F = "system-ui, -apple-system, sans-serif";
+    const cx = GAME.WIDTH / 2;
+    const y = 502;
+    const hint = this.add
+      .text(cx, y - 46, "Feed the monster — or toss to dig", {
+        fontFamily: F,
+        fontSize: "13px",
+        color: "#aeb6e6",
+      })
+      .setOrigin(0.5);
+
+    const feedBg = this.add
+      .rectangle(cx - 72, y, 128, 54, COLORS.teal, 1)
+      .setStrokeStyle(1, 0xffffff, 0.2)
+      .setInteractive({ useHandCursor: true });
+    feedBg.on("pointerdown", () => this.claw.feedHeld());
+    const feedTxt = this.add
+      .text(cx - 72, y, "Feed", {
+        fontFamily: F,
+        fontSize: "20px",
+        fontStyle: "500",
+        color: "#06251f",
+      })
+      .setOrigin(0.5);
+
+    const tossBg = this.add
+      .rectangle(cx + 72, y, 128, 54, 0x4a4a55, 1)
+      .setStrokeStyle(1, 0xffffff, 0.2)
+      .setInteractive({ useHandCursor: true });
+    tossBg.on("pointerdown", () => this.claw.tossHeld());
+    const tossTxt = this.add
+      .text(cx + 72, y, "Toss", {
+        fontFamily: F,
+        fontSize: "20px",
+        fontStyle: "500",
+        color: "#eef1ff",
+      })
+      .setOrigin(0.5);
+
+    this.choiceUI = this.add
+      .container(0, 0, [hint, feedBg, feedTxt, tossBg, tossTxt])
+      .setDepth(28)
+      .setVisible(false);
   }
 
   /** Food dropped per pickup, rising with milestone up to the cap. */
