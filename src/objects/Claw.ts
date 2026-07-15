@@ -1,6 +1,11 @@
 import Phaser from "phaser";
 import { FoodPile, Food } from "./FoodPile";
 
+/** What the scene decides to do with a just-grabbed piece. */
+export type GrabResolution =
+  | { stash: false }
+  | { stash: true; x: number; y: number };
+
 export interface ClawOpts {
   railY: number;
   floorY: number;
@@ -11,15 +16,14 @@ export interface ClawOpts {
   onEat: (food: Food) => void;
   /** Fires once the claw returns to idle after a dig (grabbed or not). */
   onCycleDone: () => void;
+  /**
+   * Called when a piece is grabbed. `wantStash` is the player's swipe intent;
+   * the scene decides whether it can actually stash and returns the target.
+   */
+  resolveGrab: (food: Food, wantStash: boolean) => GrabResolution;
 }
 
-type ClawState =
-  | "idle"
-  | "aim"
-  | "descend"
-  | "ascend"
-  | "holding" // grabbed a piece, waiting for the player to Feed or Toss
-  | "busy"; // playing a feed/toss animation
+type ClawState = "idle" | "aim" | "descend" | "ascend" | "busy";
 
 const DESCEND_SPEED = 640; // px/s
 const ASCEND_SPEED = 780;
@@ -27,9 +31,9 @@ const TIP_OFFSET = 14;
 
 /**
  * The claw: drag to aim while idle, release to drop. It descends, grabs the
- * topmost settled food in its column, lifts, and flings it to the monster.
- * Kinematic (not physics-driven) so control feels crisp; the pile it digs
- * into is the physics part.
+ * topmost settled food in its column, lifts, and then either feeds it to the
+ * monster (normal release) or flings it to the pocket (swipe-up release).
+ * Kinematic so control feels crisp; the pile it digs into is the physics part.
  */
 export class Claw {
   private scene: Phaser.Scene;
@@ -42,6 +46,7 @@ export class Claw {
   state: ClawState = "idle";
   private held: Food | null = null;
   private heldSprite?: Phaser.GameObjects.Image;
+  private pendingStash = false;
 
   constructor(scene: Phaser.Scene, pile: FoodPile, o: ClawOpts) {
     this.scene = scene;
@@ -64,8 +69,10 @@ export class Claw {
       this.x = Phaser.Math.Clamp(x, this.o.aimMin, this.o.aimMax);
   }
 
-  release(): void {
+  /** Release the aim and drop. `stash` = the player swiped up (stash intent). */
+  release(stash: boolean): void {
     if (this.state === "aim") {
+      this.pendingStash = stash;
       this.state = "descend";
     }
   }
@@ -88,8 +95,10 @@ export class Claw {
       if (this.y <= this.o.railY) {
         this.y = this.o.railY;
         if (this.held) {
-          // Hold it up and wait for the player's Feed / Toss choice.
-          this.state = "holding";
+          this.state = "busy";
+          const r = this.o.resolveGrab(this.held, this.pendingStash);
+          if (r.stash) this.animateStash(r.x, r.y);
+          else this.deliver();
         } else {
           // Empty dig — still counts as a cycle (a refill drops).
           this.state = "idle";
@@ -98,66 +107,6 @@ export class Claw {
       }
     }
     this.draw();
-  }
-
-  /** True while a grabbed piece is waiting for a Feed / Toss decision. */
-  hasHeld(): boolean {
-    return this.state === "holding";
-  }
-
-  /** The piece currently held (for stashing), or null. */
-  heldFood(): Food | null {
-    return this.state === "holding" ? this.held : null;
-  }
-
-  /** Fly the held piece to a target (the pocket) and finish the cycle. */
-  stashTo(tx: number, ty: number): void {
-    if (this.state !== "holding" || !this.heldSprite) return;
-    this.state = "busy";
-    const spr = this.heldSprite;
-    this.held = null;
-    this.heldSprite = undefined;
-    this.scene.tweens.add({
-      targets: spr,
-      x: tx,
-      y: ty,
-      scale: 0.5,
-      duration: 260,
-      ease: "Quad.easeIn",
-      onComplete: () => {
-        spr.destroy();
-        this.finishCycle();
-      },
-    });
-  }
-
-  /** Feed the held piece to the monster. */
-  feedHeld(): void {
-    if (this.state !== "holding" || !this.held) return;
-    this.state = "busy";
-    this.deliver();
-  }
-
-  /** Toss the held piece away (dig) — no feed, no mood/streak change. */
-  tossHeld(): void {
-    if (this.state !== "holding" || !this.heldSprite) return;
-    this.state = "busy";
-    const spr = this.heldSprite;
-    this.held = null;
-    this.heldSprite = undefined;
-    this.scene.tweens.add({
-      targets: spr,
-      y: spr.y - 130,
-      alpha: 0,
-      scale: 0.4,
-      angle: 220,
-      duration: 320,
-      ease: "Quad.easeIn",
-      onComplete: () => {
-        spr.destroy();
-        this.finishCycle();
-      },
-    });
   }
 
   private finishCycle(): void {
@@ -176,6 +125,26 @@ export class Claw {
     this.state = "ascend";
   }
 
+  /** Fly the held piece to the pocket, then finish the cycle. */
+  private animateStash(tx: number, ty: number): void {
+    const spr = this.heldSprite!;
+    this.held = null;
+    this.heldSprite = undefined;
+    this.scene.tweens.add({
+      targets: spr,
+      x: tx,
+      y: ty,
+      scale: 0.5,
+      duration: 260,
+      ease: "Quad.easeIn",
+      onComplete: () => {
+        spr.destroy();
+        this.finishCycle();
+      },
+    });
+  }
+
+  /** Lob the held piece to the monster, feed it, then finish the cycle. */
   private deliver(): void {
     const spr = this.heldSprite!;
     const food = this.held!;
@@ -189,7 +158,6 @@ export class Claw {
     this.scene.tweens.addCounter({
       from: 0,
       to: 1,
-      // Slow, arcing lob so the player can read the delivery.
       duration: 620,
       ease: "Sine.easeInOut",
       onUpdate: (tw) => {
@@ -210,21 +178,18 @@ export class Claw {
     g.clear();
     const open = this.state === "idle" || this.state === "aim" ? 1 : 0.35;
 
-    // rail
     g.lineStyle(4, 0xffffff, 0.16);
     g.beginPath();
     g.moveTo(this.o.aimMin - 16, this.o.railY - 8);
     g.lineTo(this.o.aimMax + 16, this.o.railY - 8);
     g.strokePath();
 
-    // cable
     g.lineStyle(3, 0xcfd6ff, this.state === "aim" ? 0.8 : 0.45);
     g.beginPath();
     g.moveTo(this.x, this.o.railY - 8);
     g.lineTo(this.x, this.y);
     g.strokePath();
 
-    // gripper
     g.lineStyle(4, 0xcfd6ff, 1);
     g.beginPath();
     g.moveTo(this.x - 3, this.y);

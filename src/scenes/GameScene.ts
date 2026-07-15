@@ -16,8 +16,8 @@ export class GameScene extends Phaser.Scene {
   private monster!: Monster;
   private hud!: Hud;
   private state!: GameState;
-  private choiceUI!: Phaser.GameObjects.Container;
   private pocketDisc!: Phaser.GameObjects.Image;
+  private pressY = 0; // where a drag started, to detect a swipe-up (stash)
   private static POCKET_X = 34;
   private static POCKET_Y = 156;
   private over = false;
@@ -90,31 +90,41 @@ export class GameScene extends Phaser.Scene {
       monster: this.monster,
       onEat: (food) => this.handleFeed(food),
       onCycleDone: () => this.dropRefill(),
+      // A swipe-up stashes into the pocket (if free); otherwise feed.
+      resolveGrab: (food, wantStash) => {
+        if (wantStash && this.state.stash(food.type)) {
+          return { stash: true, x: GameScene.POCKET_X, y: GameScene.POCKET_Y + 6 };
+        }
+        return { stash: false };
+      },
     });
 
-    // Grab input is blocked while a piece is held (the Feed/Toss buttons take
-    // over) and while game over / not yet ready.
-    const canGrab = () =>
-      !this.over && this.inputReady && !this.claw.hasHeld();
+    // Drag to aim, release to feed; a swipe-up release stashes instead.
+    // (press/aim/release self-guard on the claw's state, so mid-animation
+    // taps are ignored.)
+    const ready = () => !this.over && this.inputReady;
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (canGrab()) this.claw.press(p.x);
+      if (!ready()) return;
+      this.pressY = p.y;
+      this.claw.press(p.x);
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (canGrab() && p.isDown) this.claw.aim(p.x);
+      if (ready() && p.isDown) this.claw.aim(p.x);
     });
-    this.input.on("pointerup", () => {
-      if (canGrab()) this.claw.release();
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (!ready()) return;
+      const stash = this.pressY - p.y > 55; // swiped up = stash intent
+      this.claw.release(stash);
     });
 
-    this.createChoiceButtons();
     this.createPocketUI();
+    this.createHelpButton();
     this.hud.update();
   }
 
   update(time: number, delta: number): void {
     if (this.over) return;
     this.claw.update(delta);
-    this.choiceUI.setVisible(this.claw.hasHeld());
     this.refreshPocket();
 
     // Overflow: the moment settled food crosses the line, start a 3s grace
@@ -207,55 +217,68 @@ export class GameScene extends Phaser.Scene {
     return Phaser.Utils.Array.GetRandom(FOOD_TYPES);
   }
 
-  /** Feed / Stash / Toss buttons, shown only while the claw holds a piece. */
-  private createChoiceButtons(): void {
-    const cx = GAME.WIDTH / 2;
-    const y = 502;
-    const hint = this.add
-      .text(cx, y - 44, "Feed · stash for later · or toss to dig", {
+  /** A "?" button that pops a short how-to-play overlay. */
+  private createHelpButton(): void {
+    const bx = GAME.WIDTH - 26;
+    const by = GAME.HEIGHT - 26;
+    const btn = this.add
+      .circle(bx, by, 16, 0xffffff, 0.08)
+      .setStrokeStyle(1, 0xffffff, 0.25)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(bx, by, "?", {
         fontFamily: FONT,
-        fontSize: "13px",
-        color: "#aeb6e6",
+        fontSize: "18px",
+        fontStyle: "500",
+        color: "#9aa3d0",
       })
-      .setOrigin(0.5);
-
-    const mk = (x: number, label: string, bg: number, fg: string, tap: () => void) => {
-      const rect = this.add
-        .rectangle(x, y, 108, 52, bg, 1)
-        .setStrokeStyle(1, 0xffffff, 0.2)
-        .setInteractive({ useHandCursor: true });
-      rect.on("pointerdown", tap);
-      const txt = this.add
-        .text(x, y, label, {
-          fontFamily: FONT,
-          fontSize: "18px",
-          fontStyle: "500",
-          color: fg,
-        })
-        .setOrigin(0.5);
-      return [rect, txt];
-    };
-
-    const feed = mk(cx - 114, "Feed", COLORS.teal, "#06251f", () =>
-      this.claw.feedHeld()
-    );
-    const stash = mk(cx, "Stash", 0x3a6ea5, "#eef1ff", () => this.stashHeld());
-    const toss = mk(cx + 114, "Toss", 0x4a4a55, "#eef1ff", () =>
-      this.claw.tossHeld()
-    );
-
-    this.choiceUI = this.add
-      .container(0, 0, [hint, ...feed, ...stash, ...toss])
-      .setDepth(28)
-      .setVisible(false);
+      .setOrigin(0.5)
+      .setDepth(31);
+    btn.on("pointerdown", () => this.showHelp());
   }
 
-  /** Stash the held piece into the pocket (if empty). */
-  private stashHeld(): void {
-    const f = this.claw.heldFood();
-    if (f && this.state.stash(f.type)) {
-      this.claw.stashTo(GameScene.POCKET_X, GameScene.POCKET_Y + 6);
-    }
+  private showHelp(): void {
+    const { WIDTH, HEIGHT } = GAME;
+    const lines = [
+      "Drag to aim the claw, release to grab",
+      "and FEED the monster the piece.",
+      "",
+      "Swipe UP as you release to STASH it",
+      "in your pocket instead — tap the pocket",
+      "to feed it later.",
+      "",
+      "Feed the food it WANTS (top-right) to grow.",
+      "Plan with the queue below it.",
+      "Keep the bin under the red line.",
+    ];
+    const shade = this.add
+      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.9)
+      .setDepth(40)
+      .setInteractive();
+    const txt = this.add
+      .text(WIDTH / 2, HEIGHT / 2 - 40, lines.join("\n"), {
+        fontFamily: FONT,
+        fontSize: "16px",
+        color: "#eaf0ff",
+        align: "center",
+        lineSpacing: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(41);
+    const tap = this.add
+      .text(WIDTH / 2, HEIGHT / 2 + 150, "tap to close", {
+        fontFamily: FONT,
+        fontSize: "14px",
+        color: "#37e0d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(41);
+    shade.on("pointerdown", () => {
+      shade.destroy();
+      txt.destroy();
+      tap.destroy();
+    });
   }
 
   /** The pocket slot (left side) — tap it to feed the stashed food. */
