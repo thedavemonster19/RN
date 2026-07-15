@@ -25,6 +25,9 @@ const SETTLED_SPEED = 1.6;
  */
 const BODY_PAD = 1;
 
+/** The bin never gobbles below this many pieces, so there's always food to grab. */
+const MIN_PILE = 10;
+
 /**
  * Owns the physical pile of food inside the bin: spawning Matter bodies,
  * answering "what's grabbable in this column", and reporting the settled pile
@@ -122,7 +125,10 @@ export class FoodPile {
       return !f.mega && Math.hypot(b.velocity.x, b.velocity.y) < SETTLED_SPEED;
     });
     Phaser.Utils.Array.Shuffle(settled);
-    const chosen = settled.slice(0, n);
+    // Never gobble the bin below a working minimum, so the player always has
+    // food to grab instead of wasting empty drops to respawn a pile.
+    const keepable = Math.max(0, this.items.length - MIN_PILE);
+    const chosen = settled.slice(0, Math.min(n, keepable));
     const spots = chosen.map((f) => ({ x: f.mo.x, y: f.mo.y }));
     chosen.forEach((f) => this.remove(f));
     return spots;
