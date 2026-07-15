@@ -156,13 +156,17 @@ export class GameScene extends Phaser.Scene {
    * reachable — an assist that still leaves ~60% of drops random.
    */
   private favoredType(): FoodType {
+    const m = this.state.milestone;
     const cur = this.state.craving;
     const nxt = this.state.nextCraving;
+    // The find-help fades a little each milestone, so higher tiers lean more on
+    // luck — but never to zero, there's always a slight nudge toward the wanted
+    // food (current, then next).
+    const curChance = Math.max(0.06, 0.18 - m * 0.011);
+    const nextChance = curChance + Math.max(0.03, 0.12 - m * 0.007);
     const r = Math.random();
-    // Slightly softer assist than before — the wanted food is more likely to
-    // drop, but not so reliably that it's handed to you.
-    if (r < 0.18 && cur.id !== MEGA.id) return cur;
-    if (r < 0.3 && nxt.id !== MEGA.id) return nxt;
+    if (r < curChance && cur.id !== MEGA.id) return cur;
+    if (r < nextChance && nxt.id !== MEGA.id) return nxt;
     return Phaser.Utils.Array.GetRandom(FOOD_TYPES);
   }
 
