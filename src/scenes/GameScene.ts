@@ -104,7 +104,9 @@ export class GameScene extends Phaser.Scene {
     // taps are ignored.)
     const ready = () => !this.over && this.inputReady;
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (!ready()) return;
+      // Only start a grab when tapping over the bin — taps on the pocket / side
+      // panels / help button must not also trigger the claw.
+      if (!ready() || p.x < BIN.left || p.x > BIN.right) return;
       this.pressY = p.y;
       this.claw.press(p.x);
     });
