@@ -21,6 +21,9 @@ export class Monster {
   private face: Phaser.GameObjects.Text;
   private sizeLabel: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
+  private mood = 80;
+  private monsterName = "";
+  private sizeText = "";
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
@@ -97,12 +100,44 @@ export class Monster {
     });
   }
 
+  /** Food smaller than it wants gets a head shake. */
+  refuse(): void {
+    this.face.setText("😖");
+    this.scene.tweens.add({
+      targets: this.container,
+      x: { from: this.x - 5, to: this.x + 5 },
+      duration: 55,
+      yoyo: true,
+      repeat: 3,
+      onComplete: () => {
+        this.container.x = this.x;
+        this.setMood(this.mood);
+      },
+    });
+  }
+
+  /** Its face is the mood readout — pure personality, never a fail state. */
   setMood(mood: number): void {
+    this.mood = mood;
     this.face.setText(mood > 60 ? "🙂" : mood > 30 ? "😐" : "😟");
   }
 
+  /** The player's name for it — shown wherever the monster is. */
+  setName(name: string): void {
+    this.monsterName = name;
+    this.refreshLabel();
+  }
+
   setSize(label: string): void {
-    this.sizeLabel.setText(label);
+    this.sizeText = label;
+    this.refreshLabel();
+  }
+
+  /** "Blobby · 4.5 m", or just whichever half we actually have. */
+  private refreshLabel(): void {
+    this.sizeLabel.setText(
+      [this.monsterName, this.sizeText].filter(Boolean).join("  ·  ")
+    );
   }
 
   get mouthX(): number {

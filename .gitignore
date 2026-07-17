@@ -13,6 +13,11 @@ dist-ssr/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+.claude/settings.local.json
+
+# Unrelated personal files that predate this project. This repo is PUBLIC
+# (GitHub Pages serves /docs), so nothing in here should ever be pushed.
+Archive/
 
 # Capacitor / iOS build artifacts (added later)
 ios/App/Pods/

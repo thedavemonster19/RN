@@ -1,11 +1,11 @@
 import Phaser from "phaser";
-import { FOOD_RADIUS, MEGA_RADIUS } from "../data/foods";
+import { TIER_RADII } from "../data/foods";
 
 /**
  * Generates placeholder textures at runtime, then hands off to the game.
- * Textures are made at the exact food diameter so the sprite never needs
- * scaling (scaling a Matter image also shrinks its body — the bug that made
- * food look "merged").
+ * One disc per tier, each made at that tier's exact diameter so the sprite
+ * never needs scaling (scaling a Matter image also shrinks its body — the bug
+ * that made food look "merged").
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -13,12 +13,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    this.makeDisc("food", FOOD_RADIUS);
-    this.makeDisc("mega", MEGA_RADIUS);
+    // One disc per tier (size); the food's type is applied as a tint.
+    TIER_RADII.forEach((r, i) => this.makeDisc(`food${i + 1}`, r));
     this.scene.start("Menu");
   }
 
-  /** A white disc (tinted per food) with a soft dark rim so piled food reads. */
+  /** A white disc (tinted per type) with a soft dark rim so piled food reads. */
   private makeDisc(key: string, r: number) {
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(0xffffff, 1);

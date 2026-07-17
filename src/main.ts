@@ -15,6 +15,12 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  // Lets us drop a real <input> over the canvas for naming the monster, so the
+  // player gets their native keyboard (and iOS autocorrect off) instead of us
+  // hand-rolling one. Phaser keeps the element aligned as the canvas scales.
+  dom: {
+    createContainer: true,
+  },
   physics: {
     default: "matter",
     matter: {

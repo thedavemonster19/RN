@@ -1,105 +1,155 @@
 import Phaser from "phaser";
 import {
-  FOOD_TYPES,
-  MEGA,
-  FOOD_RADIUS,
-  MEGA_RADIUS,
+  MAX_TIER,
   FoodType,
+  foodColor,
+  tierRadius,
+  tierTexture,
 } from "../data/foods";
 import { BIN } from "../config";
 
 export interface Food {
   mo: Phaser.Physics.Matter.Image;
   type: FoodType;
+  tier: number;
   radius: number;
-  mega: boolean;
+  /** Claimed by a merge this frame — ignore it for taps and further merges. */
+  merging: boolean;
 }
 
-/** A body counts as "settled" (grabbable / part of the pile) below this speed. */
+/** A body counts as "settled" (part of the pile) below this speed. */
 const SETTLED_SPEED = 1.6;
 
 /**
  * Collision padding: the physics body is a hair bigger than the visible disc,
  * so resting food keeps a thin gap between sprites — distinct balls that touch,
- * without a merged blob. Small so the pile still packs tightly.
+ * without a merged blob.
  */
 const BODY_PAD = 1;
 
-/** The bin never gobbles below this many pieces, so there's always food to grab. */
-const MIN_PILE = 10;
+/** Extra slack on the merge test, so food that's merely touching still merges. */
+const MERGE_SLACK = 3;
 
 /**
- * Owns the physical pile of food inside the bin: spawning Matter bodies,
- * answering "what's grabbable in this column", and reporting the settled pile
- * height for overflow checks.
+ * Owns the physical pile of food in the bin: spawning Matter bodies, merging
+ * matching food that touches (Suika-style), answering "what did the player
+ * tap", and reporting the settled pile height for overflow.
+ *
+ * Merges are detected by a proximity sweep in update() rather than Matter's
+ * collision events, so we never create/destroy bodies in the middle of a
+ * physics step (and it also catches contacts that begin while bodies sleep).
  */
 export class FoodPile {
   private scene: Phaser.Scene;
   readonly items: Food[] = [];
 
+  /** Fired when two foods merge into the next tier up. */
+  onMerge?: (x: number, y: number, type: FoodType, tier: number) => void;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
-  spawn(x: number, y: number, type: FoodType, mega = false): Food {
-    const radius = mega ? MEGA_RADIUS : FOOD_RADIUS;
+  spawn(x: number, y: number, type: FoodType, tier: number): Food {
+    const radius = tierRadius(tier);
     // The texture is already the exact diameter, so we never scale the sprite
     // (scaling a Matter image shrinks its body). setCircle gives the body a
-    // circle collider that matches the visual exactly.
-    const mo = this.scene.matter.add.image(x, y, mega ? "mega" : "food");
+    // collider that matches the visual exactly.
+    const mo = this.scene.matter.add.image(x, y, tierTexture(tier));
     mo.setCircle(radius + BODY_PAD, {
       restitution: 0,
       // Light bodies + a little air drag so contacts resolve gently and the
       // pile bleeds off motion and sleeps, instead of the solver violently
-      // shoving heavy overlapping bodies around every frame. High static
-      // friction locks the load-bearing bottom row so it doesn't condense.
-      friction: 0.5,
-      frictionStatic: 0.9,
-      frictionAir: 0.03,
-      // Megas are lighter than normal food so they rest on top of the pile
-      // instead of sinking and getting buried (a craved mega must stay grabbable).
-      density: mega ? 0.0025 : 0.006,
+      // shoving overlapping bodies around every frame.
+      friction: 0.4,
+      frictionStatic: 0.7,
+      frictionAir: 0.02,
+      density: 0.008,
     });
     // Sleep quickly after a nudge so re-settling can't visibly creep.
-    (mo.body as MatterJS.BodyType).sleepThreshold = 30;
-    mo.setTint(type.color);
+    (mo.body as MatterJS.BodyType).sleepThreshold = 24;
+    mo.setTint(foodColor(type, tier));
     mo.setDepth(5);
-    const food: Food = { mo, type, radius, mega };
+    const food: Food = { mo, type, tier, radius, merging: false };
     this.items.push(food);
     return food;
   }
 
-  spawnRandomAt(x: number, y: number): Food {
-    return this.spawn(x, y, Phaser.Utils.Array.GetRandom(FOOD_TYPES), false);
+  /**
+   * Merge pass. Food that matches on BOTH type and tier becomes one food of the
+   * next tier; two at the top of the chain annihilate instead. Runs every frame
+   * from the scene, and cascades naturally because a freshly-merged body gets
+   * tested again on the following pass.
+   */
+  update(): void {
+    for (let i = 0; i < this.items.length; i++) {
+      const a = this.items[i];
+      if (a.merging) continue;
+      // Top-tier foods never merge (or pop). They used to annihilate, which
+      // quietly incinerated 64 drops of volume for free and made the bin
+      // unfillable. Now they're boulders: immovable until the monster takes
+      // one, and feeding it shuts the mouth for a very long digestion —
+      // letting the pile over-merge is the mistake that kills you.
+      if (a.tier >= MAX_TIER) continue;
+      for (let j = i + 1; j < this.items.length; j++) {
+        const b = this.items[j];
+        if (b.merging || b.tier !== a.tier || b.type.id !== a.type.id) continue;
+        const dx = a.mo.x - b.mo.x;
+        const dy = a.mo.y - b.mo.y;
+        const reach = a.radius + b.radius + MERGE_SLACK;
+        if (dx * dx + dy * dy > reach * reach) continue;
+
+        a.merging = true;
+        b.merging = true;
+        const x = (a.mo.x + b.mo.x) / 2;
+        const y = (a.mo.y + b.mo.y) / 2;
+        const tier = a.tier;
+        const type = a.type;
+        this.destroy(a);
+        this.destroy(b);
+
+        this.spawn(x, y, type, tier + 1);
+        this.onMerge?.(x, y, type, tier + 1);
+        this.wakeAll();
+        break; // `a` is gone — move on to the next food
+      }
+    }
   }
 
-  spawnMega(x: number, y: number): Food {
-    return this.spawn(x, y, MEGA, true);
-  }
-
-  /** Topmost settled food whose x falls within the claw's column, or null. */
-  grabTopAt(x: number, colHalf: number): Food | null {
+  /**
+   * The food the player tapped: the topmost one under the point. Only what's
+   * visible on the surface can be hit, so a buried food can't be plucked out —
+   * you have to clear what's on top of it first.
+   */
+  foodAt(x: number, y: number): Food | null {
     let best: Food | null = null;
     for (const f of this.items) {
-      const b = f.mo.body as MatterJS.BodyType;
-      const speed = Math.hypot(b.velocity.x, b.velocity.y);
-      if (Math.abs(f.mo.x - x) < f.radius + colHalf && speed < SETTLED_SPEED) {
-        if (!best || f.mo.y < best.mo.y) best = f;
-      }
+      if (f.merging) continue;
+      const dx = f.mo.x - x;
+      const dy = f.mo.y - y;
+      if (dx * dx + dy * dy > f.radius * f.radius) continue;
+      if (!best || f.mo.y < best.mo.y) best = f;
     }
     return best;
   }
 
+  /** Take a food out of the pile (fed or pocketed) and let the pile re-settle. */
   remove(f: Food): void {
-    const i = this.items.indexOf(f);
-    if (i >= 0) this.items.splice(i, 1);
-    f.mo.destroy();
-    // Food resting on the removed piece is asleep and won't notice its support
-    // vanished — wake the pile so it falls to fill the gap instead of floating.
+    this.destroy(f);
     this.wakeAll();
   }
 
-  /** Wake every body so the pile re-settles (e.g. after food is removed). */
+  private destroy(f: Food): void {
+    const i = this.items.indexOf(f);
+    if (i >= 0) this.items.splice(i, 1);
+    f.mo.destroy();
+  }
+
+  /**
+   * Wake every body so the pile re-settles. Food resting on a piece that was
+   * removed or merged is asleep and won't notice its support vanished — without
+   * this it floats.
+   */
   private wakeAll(): void {
     // The raw Matter.js lib lives here at runtime but isn't in Phaser's types.
     const Sleeping = (
@@ -110,28 +160,6 @@ export class FoodPile {
     for (const it of this.items) {
       Sleeping.set(it.mo.body as MatterJS.BodyType, false);
     }
-  }
-
-  /**
-   * The monster "gobbles" n settled (non-mega) food chosen at RANDOM from
-   * anywhere in the pile — the reward for satisfying a craving. Random (rather
-   * than top-down) so it churns the whole pile instead of just clearing the
-   * balls that were most recently dropped on top. Returns the cleared positions
-   * so the scene can spark particles there.
-   */
-  gobble(n: number): { x: number; y: number }[] {
-    const settled = this.items.filter((f) => {
-      const b = f.mo.body as MatterJS.BodyType;
-      return !f.mega && Math.hypot(b.velocity.x, b.velocity.y) < SETTLED_SPEED;
-    });
-    Phaser.Utils.Array.Shuffle(settled);
-    // Never gobble the bin below a working minimum, so the player always has
-    // food to grab instead of wasting empty drops to respawn a pile.
-    const keepable = Math.max(0, this.items.length - MIN_PILE);
-    const chosen = settled.slice(0, Math.min(n, keepable));
-    const spots = chosen.map((f) => ({ x: f.mo.x, y: f.mo.y }));
-    chosen.forEach((f) => this.remove(f));
-    return spots;
   }
 
   /** Smallest y (highest point) among settled food — used for overflow. */

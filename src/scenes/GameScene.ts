@@ -1,14 +1,25 @@
 import Phaser from "phaser";
 import { GAME, BIN, COLORS, MONSTER, GRAVITY_SCALE } from "../config";
 import { FoodPile, Food } from "../objects/FoodPile";
-import { MEGA, FOOD_TYPES, FoodType } from "../data/foods";
+import { FoodType, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
 import { Monster } from "../objects/Monster";
 import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult } from "../systems/GameState";
+import { Save } from "../systems/Save";
 import { milestoneName, currentSize } from "../data/milestones";
 
 const FONT = "system-ui, -apple-system, sans-serif";
+
+/** A press that moves less than this is a tap (= feed it). */
+const TAP_SLOP = 12;
+/** Dragging up at least this far off a food pockets it. */
+const SWIPE_UP = 55;
+/** Merges within this window of each other count as one cascade. */
+const CASCADE_WINDOW = 800;
+
+/** A finger resting on a food, before we know what it meant. */
+type Press = { food: Food; x: number; y: number };
 
 export class GameScene extends Phaser.Scene {
   private pile!: FoodPile;
@@ -17,26 +28,22 @@ export class GameScene extends Phaser.Scene {
   private hud!: Hud;
   private state!: GameState;
   private pocketDisc!: Phaser.GameObjects.Image;
-  private pressY = 0; // where a drag started, to detect a swipe-up (stash)
-  private static POCKET_X = 34;
-  private static POCKET_Y = 156;
+
+  private aiming = false;
+  private press: Press | null = null;
+
   private over = false;
-  private overflowArmed = false;
   private inputReady = false;
+  private binGfx!: Phaser.GameObjects.Graphics;
   /** Timestamp the pile first crossed the line; null when it's below. */
   private overflowSince: number | null = null;
   private static OVERFLOW_GRACE = 3000;
 
-  // Difficulty: food dropped per pickup grows with the monster's milestone,
-  // capped so it never becomes unmanageable instantly.
-  private static BASE_DROP = 4;
-  private static MILESTONES_PER_DROP = 2; // +1 dropped every N milestones
-  private static MAX_DROP = 9; // keeps climbing so difficulty never plateaus
+  private mergeChain = 0;
+  private lastMergeAt = -Infinity;
 
-  // A satisfied craving gobbles the current drop count + the streak (so it
-  // always matches "more in" with "more out" and cravings stay maintainable),
-  // capped so a huge streak can't nuke the whole bin.
-  private static GOBBLE_CAP = 12;
+  private static POCKET_X = 30;
+  private static POCKET_Y = 140;
 
   constructor() {
     super("Game");
@@ -44,10 +51,12 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.over = false;
-    this.overflowArmed = false;
-    // Let the opening pile fall and settle before overflow can end the game.
-    this.time.delayedCall(1600, () => (this.overflowArmed = true));
-    // Ignore the tap that dismissed the menu so it can't trigger a first dig.
+    this.aiming = false;
+    this.press = null;
+    this.mergeChain = 0;
+    this.lastMergeAt = -Infinity;
+    this.overflowSince = null;
+    // Ignore the tap that dismissed the menu so it can't trigger a first drop.
     this.inputReady = false;
     this.time.delayedCall(150, () => (this.inputReady = true));
 
@@ -56,170 +65,288 @@ export class GameScene extends Phaser.Scene {
 
     this.drawBackground();
     this.createBinWalls();
-    this.drawBin();
+    this.binGfx = this.add.graphics().setDepth(-1);
 
     this.state = new GameState();
+    this.drawBin();
     this.pile = new FoodPile(this);
     this.monster = new Monster(this, MONSTER.x, MONSTER.y);
+    this.monster.setName(Save.name);
     this.monster.setSize(currentSize(this.state.milestone));
+    this.monster.setMood(this.state.mood);
     this.hud = new Hud(this, this.state);
 
-    // Seed the pile in a non-overlapping grid so it starts already settled
-    // (spawning food on top of itself is what made the pile churn).
-    const cx = (BIN.left + BIN.right) / 2;
-    this.pile.spawnMega(cx, BIN.floor - 26);
-    const cols = 6;
-    const sx = 42;
-    const sy = 36;
-    for (let i = 0; i < 22; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      this.pile.spawnRandomAt(
-        BIN.left + 45 + col * sx,
-        BIN.floor - 78 - row * sy
-      );
-    }
+    // Merging is where the skill shows: a well-aimed drop can set off a chain.
+    this.pile.onMerge = (x, y, type, tier) => this.handleMerge(x, y, type, tier);
 
-    this.claw = new Claw(this, this.pile, {
-      railY: BIN.railY,
-      floorY: BIN.floor,
-      aimMin: BIN.left + 24,
-      aimMax: BIN.right - 24,
-      colHalf: 4,
-      // Pass the monster itself so delivery tracks its mouth as it grows.
-      monster: this.monster,
-      onEat: (food) => this.handleFeed(food),
-      onCycleDone: () => this.dropRefill(),
-      // A swipe-up stashes into the pocket (if free); otherwise feed.
-      resolveGrab: (food, wantStash) => {
-        if (wantStash && this.state.stash(food.type)) {
-          return { stash: true, x: GameScene.POCKET_X, y: GameScene.POCKET_Y + 6 };
-        }
-        return { stash: false };
-      },
-    });
+    // The bin starts empty — every piece in it is one the player chose to drop.
+    this.claw = new Claw(this, BIN.railY, BIN.left + 22, BIN.right - 22);
+    this.claw.setDispenser(this.state.peekDrop());
 
-    // Drag to aim, release to feed; a swipe-up release stashes instead.
-    // (press/aim/release self-guard on the claw's state, so mid-animation
-    // taps are ignored.)
-    const ready = () => !this.over && this.inputReady;
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      // Only start a grab when tapping over the bin — taps on the pocket / side
-      // panels / help button must not also trigger the claw.
-      if (!ready() || p.x < BIN.left || p.x > BIN.right) return;
-      this.pressY = p.y;
-      this.claw.press(p.x);
-    });
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (ready() && p.isDown) this.claw.aim(p.x);
-    });
-    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
-      if (!ready()) return;
-      const stash = this.pressY - p.y > 55; // swiped up = stash intent
-      this.claw.release(stash);
-    });
-
+    this.bindInput();
     this.createPocketUI();
     this.createHelpButton();
     this.hud.update();
   }
 
-  update(time: number, delta: number): void {
-    if (this.over) return;
-    this.claw.update(delta);
-    this.refreshPocket();
+  /**
+   * One finger, told apart by what you touched and what you did:
+   *  - empty space → aim the queued food, release to DROP it
+   *  - tap a food  → FEED it
+   *  - swipe up off a food → POCKET it
+   * Food is never carried around, so it can never leave the bin.
+   */
+  private bindInput(): void {
+    const ready = () => !this.over && this.inputReady;
 
-    // Overflow: the moment settled food crosses the line, start a 3s grace
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (!ready() || this.aiming || this.press) return;
+      const hit = this.pile.foodAt(p.x, p.y);
+      if (hit) {
+        this.press = { food: hit, x: p.x, y: p.y };
+      } else if (p.x >= BIN.left && p.x <= BIN.right && p.y < BIN.floor) {
+        this.aiming = true;
+        this.claw.aim(p.x, this.state.peekDrop());
+      }
+    });
+
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      if (!ready() || !p.isDown) return;
+      if (this.aiming) this.claw.aim(p.x, this.state.peekDrop());
+    });
+
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (!ready()) return;
+      if (this.aiming) {
+        this.aiming = false;
+        this.dropQueued();
+      } else if (this.press) {
+        this.resolvePress(p);
+      }
+    });
+  }
+
+  /** Drop the queued food where the claw is aimed, and load the next one. */
+  private dropQueued(): void {
+    // A cascade means "merges set off by ONE drop". Without this reset the
+    // chain is only time-based, so a player dropping quickly could keep the
+    // counter climbing across unrelated merges and farm the escalating bonus.
+    this.mergeChain = 0;
+    this.lastMergeAt = -Infinity;
+    const spec = this.state.takeDrop();
+    this.pile.spawn(
+      this.claw.x,
+      BIN.railY + 6 + tierRadius(spec.tier),
+      spec.type,
+      spec.tier
+    );
+    this.claw.setDispenser(this.state.peekDrop());
+  }
+
+  private resolvePress(p: Phaser.Input.Pointer): void {
+    const { food, x, y } = this.press!;
+    this.press = null;
+    // It may have merged away while the finger was down.
+    if (!this.pile.items.includes(food) || food.merging) return;
+
+    if (y - p.y > SWIPE_UP) {
+      this.pocketFood(food);
+    } else if (Phaser.Math.Distance.Between(x, y, p.x, p.y) < TAP_SLOP) {
+      this.feedFood(food);
+    }
+    // Any other drag does nothing — the pile is not yours to rearrange.
+  }
+
+  /** Lift a food out of the pile into a sprite we can fly somewhere. */
+  private pluck(food: Food): Phaser.GameObjects.Image {
+    const { x, y } = food.mo;
+    const { type, tier } = food;
+    this.pile.remove(food);
+    return this.add
+      .image(x, y, tierTexture(tier))
+      .setTint(foodColor(type, tier))
+      .setDepth(12);
+  }
+
+  /**
+   * The monster takes its craved type at that tier or bigger. Anything else it
+   * refuses, and the food stays exactly where it was — a refusal never disturbs
+   * the pile you've built.
+   */
+  private feedFood(food: Food): void {
+    if (!this.state.accepts(food.type, food.tier)) {
+      this.monster.refuse();
+      this.floatText(food.mo.x, food.mo.y - 20, "too small!", "#ff6b7d");
+      return;
+    }
+    const { type, tier } = food;
+    this.animateFeed(this.pluck(food), type, tier);
+  }
+
+  private pocketFood(food: Food): void {
+    if (!this.state.stash({ type: food.type, tier: food.tier })) {
+      this.floatText(food.mo.x, food.mo.y - 20, "pocket full", "#9aa3d0");
+      return;
+    }
+    this.animateToPocket(this.pluck(food));
+  }
+
+  private animateFeed(
+    spr: Phaser.GameObjects.Image,
+    type: FoodType,
+    tier: number
+  ): void {
+    const sx = spr.x;
+    const sy = spr.y;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 520,
+      ease: "Sine.easeInOut",
+      onUpdate: (tw) => {
+        const t = (tw.getValue() ?? 0) as number;
+        spr.x = Phaser.Math.Linear(sx, this.monster.mouthX, t);
+        spr.y =
+          Phaser.Math.Linear(sy, this.monster.mouthY, t) -
+          Math.sin(t * Math.PI) * 70;
+      },
+      onComplete: () => {
+        spr.destroy();
+        const result = this.state.feed(type, tier);
+        if (result) this.applyFeed(result, type);
+      },
+    });
+  }
+
+  private animateToPocket(spr: Phaser.GameObjects.Image): void {
+    this.tweens.add({
+      targets: spr,
+      x: GameScene.POCKET_X,
+      y: GameScene.POCKET_Y + 8,
+      scale: 0.5,
+      duration: 260,
+      ease: "Quad.easeIn",
+      onComplete: () => spr.destroy(),
+    });
+  }
+
+  private applyFeed(result: FeedResult, type: FoodType): void {
+    const color = foodColor(type, result.tier);
+    this.monster.eat();
+    this.monster.setMood(this.state.mood);
+    this.burst(this.monster.mouthX, this.monster.mouthY, color, 12);
+    this.floatText(
+      this.monster.mouthX,
+      this.monster.mouthY - 30,
+      `+${result.points}`,
+      "#ffe08a"
+    );
+    // Spending a big food on a small craving is legal but wasteful — say so,
+    // otherwise the player never learns why their score is lagging.
+    if (!result.exact) {
+      this.floatText(
+        this.monster.mouthX,
+        this.monster.mouthY - 54,
+        `wanted a ${result.wanted}!`,
+        "#ff9d5c"
+      );
+    }
+    if (result.leveledUp) {
+      this.monster.grow(this.state.milestone);
+      this.monster.setSize(currentSize(this.state.milestone));
+      this.drawBin(); // the danger line just crept down
+      this.celebrate();
+    }
+  }
+
+  private handleMerge(x: number, y: number, type: FoodType, tier: number): void {
+    const now = this.time.now;
+    this.mergeChain =
+      now - this.lastMergeAt < CASCADE_WINDOW ? this.mergeChain + 1 : 1;
+    this.lastMergeAt = now;
+    this.state.addMergeScore(tier, this.mergeChain);
+    this.burst(x, y, foodColor(type, tier), 6);
+    if (this.mergeChain >= 3) {
+      this.floatText(x, y - 16, `chain x${this.mergeChain}`, "#ff9d5c");
+    }
+  }
+
+  /**
+   * The endgame: the danger line creeps DOWN as the monster grows, so the bin
+   * effectively shrinks while the cravings demand more and more staged
+   * material. Early on a tier-7 build fits comfortably; later there physically
+   * isn't room to stage one plus the incoming drops — that squeeze is what
+   * finally ends a good run. Capped so some bin always remains.
+   */
+  private lineY(): number {
+    return Math.min(BIN.overflowLine + this.state.milestone * 14, BIN.floor - 120);
+  }
+
+  update(time: number): void {
+    if (this.over) return;
+    this.pile.update();
+
+    // Overflow: the moment settled food crosses the line, start a grace
     // countdown. Clear the pile back under the line to cancel it.
-    const crossed =
-      this.overflowArmed && this.pile.settledTop() < BIN.overflowLine;
+    const crossed = this.pile.settledTop() < this.lineY();
     if (crossed) {
       if (this.overflowSince === null) this.overflowSince = time;
-      const remaining =
-        GameScene.OVERFLOW_GRACE - (time - this.overflowSince);
+      const remaining = GameScene.OVERFLOW_GRACE - (time - this.overflowSince);
       this.hud.overflowCountdown = Math.max(0, Math.ceil(remaining / 1000));
       if (remaining <= 0) this.gameOver("overflow");
     } else {
       this.overflowSince = null;
       this.hud.overflowCountdown = null;
     }
+    this.refreshPocket();
     this.hud.update();
   }
 
-  private handleFeed(food: Food): void {
-    this.applyFeedResult(this.state.feed(food), food.type.color);
-  }
-
-  /** Feed the stashed food (free — no grab, no refill). */
-  private eatFromPocket(): void {
-    const type = this.state.pocket;
-    if (this.over || !type) return;
-    const result = this.state.feedFromPocket();
-    if (result) this.applyFeedResult(result, type.color);
-  }
-
-  /** Show the pocketed food in its slot (tinted), or hide the slot. */
+  /** Show the pocketed food, lit up when the monster will actually take it. */
   private refreshPocket(): void {
     const p = this.state.pocket;
-    this.pocketDisc.setVisible(!!p);
-    if (p) {
-      const mega = p.id === MEGA.id;
-      this.pocketDisc
-        .setTexture(mega ? "mega" : "food")
-        .setScale(mega ? 0.7 : 1)
-        .setTint(p.color);
-    }
+    this.pocketDisc.setVisible(p !== null);
+    if (p === null) return;
+    this.pocketDisc.setTexture(tierTexture(p.tier));
+    this.pocketDisc.setTint(foodColor(p.type, p.tier));
+    this.pocketDisc.setDisplaySize(28, 28);
+    this.pocketDisc.setAlpha(this.state.accepts(p.type, p.tier) ? 1 : 0.55);
   }
 
-  private applyFeedResult(result: FeedResult, color: number): void {
-    this.monster.eat();
-    this.monster.setMood(this.state.mood);
-    this.burst(this.monster.mouthX, this.monster.mouthY, color, 12);
-
-    if (result.craved) {
-      // Gobble = current drop count + streak: scales with milestone (more in,
-      // more out, so cravings keep the bin maintainable) and rewards streaks.
-      const n = Math.min(
-        this.dropCount() + this.state.combo,
-        GameScene.GOBBLE_CAP
-      );
-      const cleared = this.pile.gobble(n);
-      cleared.forEach((c) => this.burst(c.x, c.y, COLORS.teal, 6));
-    }
-    if (result.leveledUp) {
-      this.monster.grow(this.state.milestone);
-      this.monster.setSize(currentSize(this.state.milestone));
-      this.celebrate();
-    }
+  /** The pocket slot — tap it to feed the saved food. */
+  private createPocketUI(): void {
+    const px = GameScene.POCKET_X;
+    const py = GameScene.POCKET_Y;
+    const panel = this.add.graphics().setDepth(19);
+    panel.fillStyle(0xffffff, 0.06);
+    panel.fillRoundedRect(px - 26, py - 30, 52, 74, 12);
+    panel.lineStyle(1.5, 0xffffff, 0.18);
+    panel.strokeCircle(px, py + 8, 15);
+    this.add
+      .text(px, py - 18, "POCKET", {
+        fontFamily: FONT,
+        fontSize: "10px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(20);
+    this.pocketDisc = this.add
+      .image(px, py + 8, "food1")
+      .setDepth(21)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.pocketDisc.on("pointerdown", () => this.eatFromPocket());
   }
 
-  /**
-   * Refill after the claw's dig cycle finishes (never mid-descent, so it can't
-   * intercept the piece you aimed for). Three in per pickup vs three out per
-   * satisfied craving = a give-and-take: keep up with cravings and the bin
-   * stays balanced; ignore them and it climbs toward overflow.
-   */
-  /**
-   * A dropped food's type, quietly biased toward what the monster wants now and
-   * next (skipping mega, which is spawned separately) so both are usually
-   * reachable — an assist that still leaves ~60% of drops random.
-   */
-  private favoredType(): FoodType {
-    const m = this.state.milestone;
-    const cur = this.state.craving;
-    const nxt = this.state.nextCraving;
-    // The find-help fades a little each milestone, so higher tiers lean more on
-    // luck — but never to zero, there's always a slight nudge toward the wanted
-    // food (current, then next).
-    const curChance = Math.max(0.04, 0.14 - m * 0.012);
-    const nextChance = curChance + Math.max(0.02, 0.09 - m * 0.008);
-    const r = Math.random();
-    if (r < curChance && cur.id !== MEGA.id) return cur;
-    if (r < nextChance && nxt.id !== MEGA.id) return nxt;
-    return Phaser.Utils.Array.GetRandom(FOOD_TYPES);
+  private eatFromPocket(): void {
+    if (this.over || this.press) return;
+    const p = this.state.pocket;
+    if (!p) return;
+    const result = this.state.feedFromPocket();
+    if (result) this.applyFeed(result, p.type);
+    else this.monster.refuse();
   }
 
-  /** A "?" button that pops a short how-to-play overlay. */
   private createHelpButton(): void {
     const bx = GAME.WIDTH - 26;
     const by = GAME.HEIGHT - 26;
@@ -243,33 +370,38 @@ export class GameScene extends Phaser.Scene {
   private showHelp(): void {
     const { WIDTH, HEIGHT } = GAME;
     const lines = [
-      "Drag to aim the claw, release to grab",
-      "and FEED the monster the piece.",
+      "Drag to aim, release to DROP.",
       "",
-      "Swipe UP as you release to STASH it",
-      "in your pocket instead — tap the pocket",
-      "to feed it later.",
+      "Two foods the same that touch",
+      "MERGE into the next one up.",
       "",
-      "Feed the food it WANTS (top-right) to grow.",
-      "Plan with the queue below it.",
-      "Keep the bin under the red line.",
+      "TAP a food to feed it — what it WANTS",
+      "or bigger, but it only pays for the",
+      "size it asked for, so hit it exactly.",
+      "",
+      "It only wants BIG food, and bigger",
+      "as it grows — keep a build going",
+      "before the bin fills up.",
+      "",
+      "Swipe UP off a food to POCKET it.",
+      "Keep the pile under the red line.",
     ];
     const shade = this.add
       .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.9)
       .setDepth(40)
       .setInteractive();
     const txt = this.add
-      .text(WIDTH / 2, HEIGHT / 2 - 40, lines.join("\n"), {
+      .text(WIDTH / 2, HEIGHT / 2 - 30, lines.join("\n"), {
         fontFamily: FONT,
-        fontSize: "16px",
+        fontSize: "15px",
         color: "#eaf0ff",
         align: "center",
-        lineSpacing: 6,
+        lineSpacing: 5,
       })
       .setOrigin(0.5)
       .setDepth(41);
     const tap = this.add
-      .text(WIDTH / 2, HEIGHT / 2 + 150, "tap to close", {
+      .text(WIDTH / 2, HEIGHT / 2 + 190, "tap to close", {
         fontFamily: FONT,
         fontSize: "14px",
         color: "#37e0d0",
@@ -283,74 +415,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** The pocket slot (left side) — tap it to feed the stashed food. */
-  private createPocketUI(): void {
-    const px = GameScene.POCKET_X;
-    const py = GameScene.POCKET_Y;
-    const panel = this.add.graphics().setDepth(19);
-    panel.fillStyle(0xffffff, 0.06);
-    panel.fillRoundedRect(px - 26, py - 30, 52, 74, 12);
-    panel.lineStyle(1.5, 0xffffff, 0.18);
-    panel.strokeCircle(px, py + 8, 15);
-    this.add
-      .text(px, py - 18, "POCKET", {
-        fontFamily: FONT,
-        fontSize: "10px",
-        color: "#9aa3d0",
-      })
-      .setOrigin(0.5)
-      .setDepth(20);
-    this.pocketDisc = this.add
-      .image(px, py + 8, "food")
-      .setDepth(21)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.pocketDisc.on("pointerdown", () => this.eatFromPocket());
-  }
-
-  /** Food dropped per pickup, rising with milestone up to the cap. */
-  private dropCount(): number {
-    return Math.min(
-      GameScene.BASE_DROP +
-        Math.floor(this.state.milestone / GameScene.MILESTONES_PER_DROP),
-      GameScene.MAX_DROP
-    );
-  }
-
-  private dropRefill(): void {
-    this.time.delayedCall(200, () => {
-      if (this.over) return;
-      // Drop count scales with milestone (capped), quietly biased toward the
-      // current craving (~40%) so the wanted food is usually reachable.
-      const cravingIsMega = this.state.craving.id === MEGA.id;
-      // While a mega is craved, ease the pressure: drop far fewer normal foods
-      // so the bin doesn't fill (you can't gobble until you feed the mega) and
-      // the mega on top doesn't get buried — no more instant-game-over spiral.
-      const drops = cravingIsMega ? 2 : this.dropCount();
-      for (let k = 0; k < drops; k++) {
-        // Stagger well above the diameter so the falling refills don't spawn
-        // inside one another (which would make them explode apart).
-        this.pile.spawn(
-          Phaser.Math.Between(BIN.left + 30, BIN.right - 30),
-          BIN.railY - 30 - k * 42,
-          this.favoredType(),
-          false
-        );
-      }
-      // While the monster craves a mega, keep TWO available and drop them ABOVE
-      // the normal food so they land on top and stay grabbable — otherwise a
-      // mega craving buries its own treat and spirals into a game over.
-      // Outside a mega craving, let one drop in occasionally as a bonus grab.
-      const megaCount = this.pile.items.filter((f) => f.mega).length;
-      if (cravingIsMega ? megaCount < 2 : Math.random() < 0.22) {
-        this.pile.spawnMega(
-          Phaser.Math.Between(BIN.left + 40, BIN.right - 40),
-          BIN.railY - 30 - drops * 42
-        );
-      }
-    });
-  }
-
   private celebrate(): void {
     this.cameras.main.shake(220, 0.008);
     const label = this.add
@@ -358,12 +422,7 @@ export class GameScene extends Phaser.Scene {
         GAME.WIDTH / 2,
         260,
         `As big as a ${milestoneName(this.state.milestone - 1)}!`,
-        {
-          fontFamily: "system-ui, -apple-system, sans-serif",
-          fontSize: "22px",
-          fontStyle: "500",
-          color: "#ffe08a",
-        }
+        { fontFamily: FONT, fontSize: "22px", fontStyle: "500", color: "#ffe08a" }
       )
       .setOrigin(0.5)
       .setDepth(30);
@@ -378,11 +437,31 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private floatText(x: number, y: number, msg: string, color: string): void {
+    const t = this.add
+      .text(x, y, msg, {
+        fontFamily: FONT,
+        fontSize: "15px",
+        fontStyle: "600",
+        color,
+      })
+      .setOrigin(0.5)
+      .setDepth(30);
+    this.tweens.add({
+      targets: t,
+      y: y - 34,
+      alpha: 0,
+      duration: 700,
+      ease: "Cubic.easeOut",
+      onComplete: () => t.destroy(),
+    });
+  }
+
   private burst(x: number, y: number, color: number, count: number): void {
-    const emitter = this.add.particles(x, y, "food", {
+    const emitter = this.add.particles(x, y, "food1", {
       speed: { min: 60, max: 190 },
       angle: { min: 200, max: 340 },
-      scale: { start: 0.18, end: 0 },
+      scale: { start: 0.3, end: 0 },
       lifespan: 520,
       quantity: count,
       tint: color,
@@ -435,29 +514,32 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Redrawn on every level-up, because the danger line creeps down. */
   private drawBin(): void {
-    const g = this.add.graphics().setDepth(-1);
+    const g = this.binGfx;
+    const line = this.lineY();
+    g.clear();
     g.fillStyle(0xffffff, 0.04);
     g.fillRoundedRect(
       BIN.left,
-      BIN.overflowLine - 8,
+      line - 8,
       BIN.right - BIN.left,
-      BIN.floor - BIN.overflowLine + 20,
+      BIN.floor - line + 20,
       18
     );
     g.lineStyle(1, 0xffffff, 0.12);
     g.strokeRoundedRect(
       BIN.left,
-      BIN.overflowLine - 8,
+      line - 8,
       BIN.right - BIN.left,
-      BIN.floor - BIN.overflowLine + 20,
+      BIN.floor - line + 20,
       18
     );
     g.lineStyle(1.5, COLORS.danger, 0.5);
     for (let x = BIN.left + 6; x < BIN.right - 6; x += 12) {
       g.beginPath();
-      g.moveTo(x, BIN.overflowLine);
-      g.lineTo(x + 6, BIN.overflowLine);
+      g.moveTo(x, line);
+      g.lineTo(x + 6, line);
       g.strokePath();
     }
   }

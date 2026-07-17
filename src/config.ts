@@ -24,16 +24,22 @@ export const COLORS = {
   cardFill: 0x2a3366,
 } as const;
 
-/** The bin (play area) the pile of food lives in, in base coordinates. */
+/**
+ * The bin (play area) the pile of food lives in, in base coordinates.
+ *
+ * Deliberately narrow and deep. A wide, shallow bin lets food spread into a
+ * single layer where every pair is reachable, so merges never fail and the pile
+ * can never grow — the game becomes unloseable. Cramped and tall means food
+ * stacks and buries, and since the claw only reaches the top, a mistake down in
+ * the pile is permanent. Failed merges are what make the pile climb.
+ */
 export const BIN = {
-  left: 60,
-  right: 340,
+  left: 112,
+  right: 288,
   floor: 470,
   /** Pile above this line (once settled) = overflow warning. */
-  overflowLine: 178,
-  /** Pile above this line = game over. */
-  hardLine: 144,
-  railY: 116,
+  overflowLine: 150,
+  railY: 92,
 } as const;
 
 /** Where the monster sits and receives food (it scales up as it grows). */
