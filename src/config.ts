@@ -27,15 +27,15 @@ export const COLORS = {
 /**
  * The bin (play area) the pile of food lives in, in base coordinates.
  *
- * Deliberately narrow and deep. A wide, shallow bin lets food spread into a
- * single layer where every pair is reachable, so merges never fail and the pile
- * can never grow — the game becomes unloseable. Cramped and tall means food
- * stacks and buries, and since the claw only reaches the top, a mistake down in
- * the pile is permanent. Failed merges are what make the pile climb.
+ * Sized so the tier-10 (272px across) just fits between the walls: big enough
+ * to stage deep builds, but the pile still stacks and buries rather than
+ * spreading into one reachable layer. Widening this further without re-running
+ * the balance sim risks the wide-shallow failure mode where every pair is
+ * reachable, merges never fail, and the game becomes unloseable.
  */
 export const BIN = {
-  left: 112,
-  right: 288,
+  left: 60,
+  right: 340,
   floor: 470,
   /** Pile above this line (once settled) = overflow warning. */
   overflowLine: 150,
@@ -49,8 +49,10 @@ export const MONSTER = {
 } as const;
 
 /**
- * Matter's default gravity scale (0.001) is far too weak here — high static
- * friction lets the pile jam into a floating arch instead of packing. This
- * value makes food fall briskly and settle without tunnelling the floor.
+ * Matter's default gravity scale (0.001) is too weak here — high static
+ * friction lets the pile jam into a floating arch instead of packing. But the
+ * old 0.006 was the jitter: contacts that heavy never quite settle, and any
+ * overlap resolves as a violent eject. 0.003 packs the pile while letting the
+ * solver (with raised iteration counts in main.ts) actually converge.
  */
-export const GRAVITY_SCALE = 0.006;
+export const GRAVITY_SCALE = 0.003;

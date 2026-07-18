@@ -37,7 +37,14 @@ export const TYPES: FoodType[] = [
     id: "food",
     name: "Food",
     shades: [
-      0xf27a9b, 0xe2504a, 0xf7b955, 0x8ad155, 0x5b9be2, 0x9b7bd4, 0xffd66b,
+      0xf27a9b, // 1 berry pink
+      0xe2504a, // 2 apple red
+      0xf7b955, // 3 honey amber
+      0x8ad155, // 4 lime green
+      0x5b9be2, // 5 blueberry
+      0x9b7bd4, // 6 plum
+      0xffd66b, // 7 gold
+      0xe8ecf5, // 8 ice — the run-defining monument
     ],
   },
 ];
@@ -49,10 +56,13 @@ export const TYPES: FoodType[] = [
  * ~50% by tier 5 — merging alone drained the bin faster than dropping filled
  * it. Conserving area means the only way volume leaves is the monster's mouth.
  *
- * Seven tiers: the gold tier-7 is nearly the width of the bin — the
- * "watermelon". Building one is a run-defining project.
+ * Eight tiers. Ten forced tier 1 down to 12px across and the runs into
+ * marathons (√2 over ten steps needs a huge capacity to hold the chain);
+ * eight keeps tier 1 chunky at 22px while the ice tier-8 stays a near
+ * bin-wide monument (128 tier-1s of material). Bigger food in the same bin =
+ * far less capacity = shorter, tenser runs.
  */
-export const TIER_RADII = [10, 14, 20, 28, 40, 56, 79];
+export const TIER_RADII = [11, 16, 23, 32, 45, 64, 90, 128];
 
 export const MAX_TIER = TIER_RADII.length;
 

@@ -1,9 +1,10 @@
 import Phaser from "phaser";
 import { COLORS } from "../config";
 
-/** Scale at the starting (newborn) size, and how big it's allowed to get. */
-const BASE_SCALE = 0.5;
-const MAX_SCALE = 1.55;
+/** Scale at the starting (newborn) size, and how big it's allowed to get.
+ *  Kept modest so the wider bin and the food-chain bar have room to breathe. */
+const BASE_SCALE = 0.4;
+const MAX_SCALE = 1.1;
 /** Half the drawn body height, for placing the face above and label below. */
 const BODY_HALF = 64;
 
@@ -21,7 +22,6 @@ export class Monster {
   private face: Phaser.GameObjects.Text;
   private sizeLabel: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
-  private mood = 80;
   private monsterName = "";
   private sizeText = "";
 
@@ -100,7 +100,7 @@ export class Monster {
     });
   }
 
-  /** Food smaller than it wants gets a head shake. */
+  /** Anything but the exact craving gets a head shake. */
   refuse(): void {
     this.face.setText("😖");
     this.scene.tweens.add({
@@ -111,15 +111,9 @@ export class Monster {
       repeat: 3,
       onComplete: () => {
         this.container.x = this.x;
-        this.setMood(this.mood);
+        this.face.setText("🙂");
       },
     });
-  }
-
-  /** Its face is the mood readout — pure personality, never a fail state. */
-  setMood(mood: number): void {
-    this.mood = mood;
-    this.face.setText(mood > 60 ? "🙂" : mood > 30 ? "😐" : "😟");
   }
 
   /** The player's name for it — shown wherever the monster is. */

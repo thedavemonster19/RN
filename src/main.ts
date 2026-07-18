@@ -26,9 +26,10 @@ const config: Phaser.Types.Core.GameConfig = {
     matter: {
       gravity: { x: 0, y: 1 },
       // More solver iterations keep the stacked food pile stable and separated
-      // instead of interpenetrating.
-      positionIterations: 18,
-      velocityIterations: 10,
+      // instead of interpenetrating — cheap at this body count, and the main
+      // defence against resting-contact jitter now that gravity is softer.
+      positionIterations: 24,
+      velocityIterations: 16,
       // Let resting food fall asleep so the settled pile stops micro-shifting
       // and condensing. New drops / grabs wake the neighbours they touch.
       enableSleeping: true,

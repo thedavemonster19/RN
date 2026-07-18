@@ -22,18 +22,16 @@ function paintDisc(img: Phaser.GameObjects.Image, spec: Spec): void {
 }
 
 /**
- * On-canvas HUD: size/score header, mood + growth bars, what the monster WANTS
- * (type AND size, with the cravings queued behind it), the queue of food you
- * get to drop, the streak, and the overflow warning. Placeholder styling for
- * the art pass; reads everything live from GameState.
+ * On-canvas HUD: size/score header, the growth bar, the exact food the monster
+ * WANTS (with the cravings queued behind it), the queue of food you get to
+ * drop, and the overflow warning. Placeholder styling for the art pass; reads
+ * everything live from GameState.
  */
 export class Hud {
   private state: GameState;
 
   private sizeText: Phaser.GameObjects.Text;
   private scoreText: Phaser.GameObjects.Text;
-  private comboText: Phaser.GameObjects.Text;
-  private multText: Phaser.GameObjects.Text;
   private warnText: Phaser.GameObjects.Text;
   private bars: Phaser.GameObjects.Graphics;
 
@@ -41,6 +39,7 @@ export class Hud {
   private wantLabel: Phaser.GameObjects.Text;
   private cravingDiscs: Phaser.GameObjects.Image[] = [];
   private dropDiscs: Phaser.GameObjects.Image[] = [];
+  private chainDiscs: Phaser.GameObjects.Image[] = [];
 
   /** Seconds left before overflow ends the game, or null when safe. */
   overflowCountdown: number | null = null;
@@ -62,28 +61,6 @@ export class Hud {
       .setOrigin(1, 0)
       .setDepth(depth);
 
-    // Mood: how precisely you've been feeding. A bonus and a face, never a
-    // fail state — nothing drains it over time, so the game stays unhurried.
-    scene.add
-      .text(16, 46, "MOOD", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
-      .setDepth(depth);
-    this.multText = scene.add
-      .text(GAME.WIDTH - 16, 44, "", {
-        fontFamily: FONT,
-        fontSize: "14px",
-        fontStyle: "500",
-        color: "#37e0d0",
-      })
-      .setOrigin(1, 0)
-      .setDepth(depth);
-    this.comboText = scene.add
-      .text(GAME.WIDTH / 2, 76, "", {
-        fontFamily: FONT,
-        fontSize: "13px",
-        color: "#ff9d5c",
-      })
-      .setOrigin(0.5)
-      .setDepth(depth);
     this.warnText = scene.add
       .text(GAME.WIDTH / 2, 216, "", {
         fontFamily: FONT,
@@ -97,12 +74,13 @@ export class Hud {
 
     this.bars = scene.add.graphics().setDepth(depth);
 
-    // WANTS panel (right): the exact food the monster will accept, and the
-    // cravings queued behind it so the player can build toward them in advance.
+    // WANTS panel (right): the exact food the monster will accept, and the one
+    // coming after it — enough to plan a hold-or-spend, without the repetitive
+    // stack of lookahead discs.
     const px = GAME.WIDTH - 30;
     const panel = scene.add.graphics().setDepth(depth - 1);
     panel.fillStyle(0xffffff, 0.06);
-    panel.fillRoundedRect(px - 26, 100, 52, 210, 12);
+    panel.fillRoundedRect(px - 26, 100, 52, 134, 12);
     scene.add
       .text(px, 108, "WANTS", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
@@ -118,10 +96,10 @@ export class Hud {
       .setOrigin(0.5)
       .setDepth(depth + 1);
     scene.add
-      .text(px, 172, "THEN", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(px, 180, "THEN", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
-    this.cravingDiscs = [200, 236, 272].map((qy) =>
+    this.cravingDiscs = [206].map((qy) =>
       scene.add.image(px, qy, "food1").setAlpha(0.75).setDepth(depth)
     );
 
@@ -140,19 +118,35 @@ export class Hud {
         .setAlpha(i === 0 ? 1 : 0.6)
         .setDepth(depth)
     );
+
+    // The food chain, tier 1 → 10 left to right along the bottom — the whole
+    // merge ladder at a glance, with the currently craved tier lit up. Doubles
+    // as the tutorial: you can read "what merges into what" without being told.
+    const chainY = GAME.HEIGHT - 20;
+    const chainLeft = 24;
+    const chainStep = (GAME.WIDTH - 76 - chainLeft) / (MAX_TIER - 1);
+    this.chainDiscs = [];
+    for (let t = 1; t <= MAX_TIER; t++) {
+      const d = scene.add
+        .image(chainLeft + (t - 1) * chainStep, chainY, tierTexture(t))
+        .setDepth(depth);
+      const dia = 10 + t * 2; // display size only — real radii wouldn't fit
+      d.setDisplaySize(dia, dia);
+      this.chainDiscs.push(d);
+    }
   }
 
   update(): void {
     const s = this.state;
     this.sizeText.setText(`Growing to: ${milestoneName(s.milestone)}`);
     this.scoreText.setText(`${s.score}`);
-    this.multText.setText(`×${(s.comboMult * s.moodMult).toFixed(1)}`);
-    this.comboText.setText(
-      s.combo >= 2 ? `streak x${s.combo}  ·  ×${s.comboMult.toFixed(1)} score` : ""
-    );
-
     paintDisc(this.wantDisc, s.craving);
     this.wantLabel.setText(`${s.craving.tier}`);
+    this.chainDiscs.forEach((d, i) => {
+      const tier = i + 1;
+      d.setTint(foodColor(s.craving.type, tier));
+      d.setAlpha(tier === s.craving.tier ? 1 : 0.4);
+    });
     s.cravingQueue.forEach((c, i) => {
       const d = this.cravingDiscs[i];
       if (d) paintDisc(d, c);
@@ -173,19 +167,22 @@ export class Hud {
     const g = this.bars;
     g.clear();
 
-    // mood bar (the precision bonus gauge)
-    const moodColor =
-      s.mood > 60 ? COLORS.teal : s.mood > 30 ? COLORS.amber : COLORS.coral;
-    g.fillStyle(0xffffff, 0.14);
-    g.fillRoundedRect(58, 44, 190, 12, 6);
-    g.fillStyle(moodColor, 1);
-    g.fillRoundedRect(58, 44, Math.max(3, (190 * s.mood) / 100), 12, 6);
-
     // growth bar
     const bw = GAME.WIDTH - 32;
     g.fillStyle(0xffffff, 0.14);
-    g.fillRoundedRect(16, 62, bw, 9, 4);
+    g.fillRoundedRect(16, 48, bw, 11, 5);
     g.fillStyle(COLORS.teal, 1);
-    g.fillRoundedRect(16, 62, Math.max(3, bw * s.growthProgress), 9, 4);
+    g.fillRoundedRect(16, 48, Math.max(3, bw * s.growthProgress), 11, 5);
+
+    // Freshness: the little fuse under the craving. Full = full bonus; it
+    // burns down as you take drops, and empty just means base pay.
+    const px = GAME.WIDTH - 30;
+    const f = s.freshness;
+    g.fillStyle(0xffffff, 0.14);
+    g.fillRoundedRect(px - 20, 166, 40, 5, 2);
+    if (f > 0) {
+      g.fillStyle(f > 0.6 ? COLORS.teal : f > 0.25 ? COLORS.amber : COLORS.coral, 1);
+      g.fillRoundedRect(px - 20, 166, Math.max(3, 40 * f), 5, 2);
+    }
   }
 }
