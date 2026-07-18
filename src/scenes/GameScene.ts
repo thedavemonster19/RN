@@ -26,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: Hud;
   private state!: GameState;
   private pocketDisc!: Phaser.GameObjects.Image;
+  private pocketStatus!: Phaser.GameObjects.Text;
 
   private aiming = false;
   private press: Press | null = null;
@@ -35,6 +36,11 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   private inputReady = false;
   private binGfx!: Phaser.GameObjects.Graphics;
+  /** Redrawn every frame: the bin edge glowing as the pile nears the line. */
+  private dangerGfx!: Phaser.GameObjects.Graphics;
+  /** The last food dropped, while it's still undoable. */
+  private lastDrop: { food: Food; spec: Spec; fromPocket: boolean } | null = null;
+  private undoLabel!: Phaser.GameObjects.Text;
   /** Timestamp the pile first crossed the line; null when it's below. */
   private overflowSince: number | null = null;
   private static OVERFLOW_GRACE = 3000;
@@ -46,11 +52,19 @@ export class GameScene extends Phaser.Scene {
     super("Game");
   }
 
+  /** Set by the menu: a daily-challenge run shares its seed with everyone. */
+  private dailyKey: string | null = null;
+
+  init(data: { dailyKey?: string }): void {
+    this.dailyKey = data?.dailyKey ?? null;
+  }
+
   create(): void {
     this.over = false;
     this.aiming = false;
     this.press = null;
     this.pocketLoad = null;
+    this.lastDrop = null;
     this.overflowSince = null;
     // Ignore the tap that dismissed the menu so it can't trigger a first drop.
     this.inputReady = false;
@@ -63,7 +77,8 @@ export class GameScene extends Phaser.Scene {
     this.createBinWalls();
     this.binGfx = this.add.graphics().setDepth(-1);
 
-    this.state = new GameState();
+    this.state = new GameState(this.dailyKey);
+    this.dangerGfx = this.add.graphics().setDepth(0);
     this.drawBin();
     this.pile = new FoodPile(this);
     this.monster = new Monster(this, MONSTER.x, MONSTER.y);
@@ -80,6 +95,7 @@ export class GameScene extends Phaser.Scene {
 
     this.bindInput();
     this.createPocketUI();
+    this.createUndoButton();
     this.createHelpButton();
     this.hud.update();
   }
@@ -137,14 +153,49 @@ export class GameScene extends Phaser.Scene {
    * never a fresh drop.
    */
   private dropQueued(): void {
+    const fromPocket = this.pocketLoad !== null;
     const spec = this.pocketLoad ?? this.state.takeDrop();
     this.pocketLoad = null;
     const r = tierRadius(spec.tier);
     // Never spawn inside a pile that has grown up to the rail — that overlap
     // is what used to fire food upwards.
     const y = this.pile.clearSpawnY(this.claw.x, r, BIN.railY + 6 + r);
-    this.pile.spawn(this.claw.x, y, spec.type, spec.tier);
+    const food = this.pile.spawn(this.claw.x, y, spec.type, spec.tier);
+    this.state.noteTier(spec.tier);
+    this.lastDrop = { food, spec, fromPocket };
     this.claw.setDispenser(this.currentDrop());
+  }
+
+  /**
+   * Take back the last drop. Only works while that exact food is still sitting
+   * in the bin unmerged — once it has combined with something, the board has
+   * moved on and there's nothing unambiguous to undo.
+   */
+  private undoDrop(): void {
+    if (this.over || this.aiming || this.press) return;
+    if (this.state.undosLeft <= 0) {
+      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "no undos left", "#9aa3d0");
+      return;
+    }
+    const last = this.lastDrop;
+    if (!last || !this.pile.items.includes(last.food) || last.food.merging) {
+      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#9aa3d0");
+      return;
+    }
+    this.pile.remove(last.food);
+    if (last.fromPocket) {
+      // It came out of the pocket, so it goes back there — not into the queue,
+      // which would launder a stashed food into free drops.
+      this.state.pocket = last.spec;
+      this.state.undosLeft--;
+      this.state.emit("changed");
+    } else {
+      this.state.returnDrop(last.spec);
+    }
+    this.lastDrop = null;
+    this.claw.setDispenser(this.currentDrop());
+    this.refreshUndo();
+    this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "undone", "#37e0d0");
   }
 
   private resolvePress(p: Phaser.Input.Pointer): void {
@@ -194,7 +245,11 @@ export class GameScene extends Phaser.Scene {
 
   private pocketFood(food: Food): void {
     if (!this.state.stash({ type: food.type, tier: food.tier })) {
-      this.floatText(food.mo.x, food.mo.y - 20, "pocket full", "#9aa3d0");
+      const msg =
+        this.state.pocket !== null
+          ? "pocket full"
+          : `needs ${this.state.stashCost(food.tier)}`;
+      this.floatText(food.mo.x, food.mo.y - 20, msg, "#9aa3d0");
       return;
     }
     this.animateToPocket(this.pluck(food));
@@ -262,7 +317,58 @@ export class GameScene extends Phaser.Scene {
 
   private handleMerge(x: number, y: number, type: FoodType, tier: number): void {
     this.state.addMergeScore(tier);
+    this.state.noteTier(tier);
+    // The merged food is gone or changed, so the previous drop is no longer
+    // something we can cleanly take back.
+    this.lastDrop = null;
     this.burst(x, y, foodColor(type, tier), 6);
+  }
+
+  /** A small undo button with its remaining charges. */
+  private createUndoButton(): void {
+    const bx = 30;
+    const by = GAME.HEIGHT - 78;
+    const btn = this.add
+      .circle(bx, by, 20, 0xffffff, 0.08)
+      .setStrokeStyle(1, 0xffffff, 0.25)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(bx, by - 4, "↩", { fontFamily: FONT, fontSize: "19px", color: "#eaf0ff" })
+      .setOrigin(0.5)
+      .setDepth(31);
+    this.undoLabel = this.add
+      .text(bx, by + 22, "", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .setOrigin(0.5)
+      .setDepth(31);
+    btn.on("pointerdown", () => this.undoDrop());
+    this.refreshUndo();
+  }
+
+  private refreshUndo(): void {
+    this.undoLabel.setText(`UNDO ${this.state.undosLeft}`);
+  }
+
+  /**
+   * The bin edge glows and breathes as the pile climbs toward the line, so the
+   * danger is felt in peripheral vision instead of only announced in text.
+   */
+  private drawDanger(time: number): void {
+    const g = this.dangerGfx;
+    g.clear();
+    const line = this.lineY();
+    const top = this.pile.settledTop();
+    // 0 at a comfortable distance, 1 right at the line.
+    const proximity = Phaser.Math.Clamp(1 - (top - line) / 150, 0, 1);
+    if (proximity <= 0.02) return;
+
+    const pulse = 0.55 + 0.45 * Math.sin(time / (150 - proximity * 90));
+    const alpha = proximity * proximity * pulse;
+    const h = BIN.floor - line + 20;
+    g.lineStyle(3, COLORS.danger, alpha * 0.85);
+    g.strokeRoundedRect(BIN.left, line - 8, BIN.right - BIN.left, h, 18);
+    g.lineStyle(9, COLORS.danger, alpha * 0.22);
+    g.strokeRoundedRect(BIN.left, line - 8, BIN.right - BIN.left, h, 18);
   }
 
   /**
@@ -279,6 +385,7 @@ export class GameScene extends Phaser.Scene {
   update(time: number): void {
     if (this.over) return;
     this.pile.update();
+    this.drawDanger(time);
 
     // Overflow: the moment settled food crosses the line, start a grace
     // countdown. Clear the pile back under the line to cancel it.
@@ -296,14 +403,21 @@ export class GameScene extends Phaser.Scene {
     this.hud.update();
   }
 
-  /** Show the pocketed food waiting in its slot. */
+  /** Show the pocketed food, or how close the next stash charge is. */
   private refreshPocket(): void {
     const p = this.state.pocket;
     this.pocketDisc.setVisible(p !== null);
-    if (p === null) return;
-    this.pocketDisc.setTexture(tierTexture(p.tier));
-    this.pocketDisc.setTint(foodColor(p.type, p.tier));
-    this.pocketDisc.setDisplaySize(28, 28);
+    if (p !== null) {
+      this.pocketDisc.setTexture(tierTexture(p.tier));
+      this.pocketDisc.setTint(foodColor(p.type, p.tier));
+      this.pocketDisc.setDisplaySize(28, 28);
+      this.pocketStatus.setText("tap to use").setColor("#37e0d0");
+      return;
+    }
+    // Charges banked. Bigger food costs more, so this is a budget, not a flag.
+    this.pocketStatus
+      .setText(`⚡${this.state.pocketCharges}`)
+      .setColor(this.state.pocketCharges > 0 ? "#37e0d0" : "#9aa3d0");
   }
 
   /** The pocket slot — tap it to load the saved food back onto the claw. */
@@ -312,7 +426,7 @@ export class GameScene extends Phaser.Scene {
     const py = GameScene.POCKET_Y;
     const panel = this.add.graphics().setDepth(19);
     panel.fillStyle(0xffffff, 0.06);
-    panel.fillRoundedRect(px - 26, py - 30, 52, 74, 12);
+    panel.fillRoundedRect(px - 26, py - 30, 52, 86, 12);
     panel.lineStyle(1.5, 0xffffff, 0.18);
     panel.strokeCircle(px, py + 8, 15);
     this.add
@@ -321,6 +435,10 @@ export class GameScene extends Phaser.Scene {
         fontSize: "10px",
         color: "#9aa3d0",
       })
+      .setOrigin(0.5)
+      .setDepth(20);
+    this.pocketStatus = this.add
+      .text(px, py + 38, "", { fontFamily: FONT, fontSize: "9px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(20);
     this.pocketDisc = this.add
@@ -483,6 +601,10 @@ export class GameScene extends Phaser.Scene {
       score: this.state.score,
       milestone: this.state.milestone,
       reason,
+      feeds: this.state.totalFeeds,
+      drops: this.state.totalDrops,
+      biggestTier: this.state.biggestTier,
+      dailyKey: this.state.dailyKey,
     });
     this.scene.pause();
   }

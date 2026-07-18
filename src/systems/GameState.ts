@@ -7,6 +7,7 @@ import {
   MIN_CRAVING_TIER,
 } from "../data/foods";
 import { growthReq } from "../data/milestones";
+import { Rng, hashSeed } from "./Rng";
 
 // Overflow is the only way to lose — the game is infinite and skill-based.
 export type GameOverReason = "overflow";
@@ -30,6 +31,26 @@ export interface FeedResult {
  *  preview the panel read as repetitive noise, and one "next" is enough to
  *  decide whether to hold or spend a build. */
 const CRAVING_QUEUE_LEN = 1;
+
+/**
+ * The pocket is the ONLY counterplay to exact-only feeding — without it,
+ * over-merged food is dead weight you can do nothing about. But free parking
+ * for your biggest mistake is too safe: measured, permanently parking your
+ * largest food extends a run ~35%.
+ *
+ * So it's priced BY SIZE. Every feed banks one charge; stashing costs charges
+ * equal to the food's tier. Parking a tier-2 is nearly free, parking a huge
+ * one is a real investment you must feed your way toward — which is exactly
+ * where the "extra space for giant food" unfairness lived.
+ *
+ * A flat per-feed cooldown was tried first and measured as barely binding: the
+ * single slot is already the limiter, since a parked food usually stays parked.
+ */
+const POCKET_CHARGE_CAP = MAX_TIER;
+const POCKET_START_CHARGES = 3;
+
+/** Undos per run — enough to rescue real misfires, too few to play by trial. */
+const UNDOS_PER_RUN = 3;
 /** How many upcoming drops the player can plan against. */
 const DROP_QUEUE_LEN = 4;
 
@@ -62,12 +83,28 @@ export class GameState extends Phaser.Events.EventEmitter {
   dropQueue: Spec[] = [];
   /** One saved food, held out of the bin until you drop it back in. */
   pocket: Spec | null = null;
+  /** Banked stash charges — one per feed, spent by size when you pocket. */
+  pocketCharges = POCKET_START_CHARGES;
+  /** Cravings satisfied this run. */
+  totalFeeds = 0;
   /** Drops taken since the current craving appeared — freshness decays on
    *  drops, never on time, so thinking is still free. */
   cravingAge = 0;
+  /** Run stats for the end-of-run summary. */
+  totalDrops = 0;
+  biggestTier = 0;
+  /** Undos left this run — the panic button for a misfired drop. */
+  undosLeft = UNDOS_PER_RUN;
+  /** Set for a daily-challenge run: everyone gets this same food sequence. */
+  readonly dailyKey: string | null;
 
-  constructor() {
+  private rng: Rng;
+
+  /** Pass a daily key to get a deterministic run everyone else also gets. */
+  constructor(dailyKey: string | null = null) {
     super();
+    this.dailyKey = dailyKey;
+    this.rng = new Rng(dailyKey ? hashSeed(dailyKey) : (Math.random() * 2 ** 32) >>> 0);
     this.craving = this.rollCraving();
     for (let i = 0; i < CRAVING_QUEUE_LEN; i++)
       this.cravingQueue.push(this.rollCraving());
@@ -87,8 +124,8 @@ export class GameState extends Phaser.Events.EventEmitter {
     const min = Math.min(MIN_CRAVING_TIER + Math.floor(m / 2), MAX_TIER - 1);
     const max = Math.min(MIN_CRAVING_TIER + 1 + Math.floor((2 * m) / 3), MAX_TIER);
     return {
-      type: Phaser.Utils.Array.GetRandom(TYPES),
-      tier: Phaser.Math.Between(min, Math.max(min, max)),
+      type: this.rng.pick(TYPES),
+      tier: this.rng.between(min, Math.max(min, max)),
     };
   }
 
@@ -99,9 +136,9 @@ export class GameState extends Phaser.Events.EventEmitter {
    * play effectively immortal.
    */
   private rollDrop(): Spec {
-    const r = Math.random();
+    const r = this.rng.next();
     const tier = r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : MAX_DROP_TIER;
-    return { type: Phaser.Utils.Array.GetRandom(TYPES), tier };
+    return { type: this.rng.pick(TYPES), tier };
   }
 
   get growthProgress(): number {
@@ -118,8 +155,27 @@ export class GameState extends Phaser.Events.EventEmitter {
     const spec = this.dropQueue.shift()!;
     this.dropQueue.push(this.rollDrop());
     this.cravingAge++;
+    this.totalDrops++;
     this.emit("changed");
     return spec;
+  }
+
+  /**
+   * Put a drop back exactly as it was — undoes takeDrop, including the
+   * freshness tick, so an undo can't be used to farm the freshness bonus.
+   */
+  returnDrop(spec: Spec): void {
+    this.dropQueue.pop();
+    this.dropQueue.unshift(spec);
+    if (this.cravingAge > 0) this.cravingAge--;
+    this.totalDrops = Math.max(0, this.totalDrops - 1);
+    this.undosLeft--;
+    this.emit("changed");
+  }
+
+  /** Track the biggest food ever built, for the run summary. */
+  noteTier(tier: number): void {
+    if (tier > this.biggestTier) this.biggestTier = tier;
   }
 
   /**
@@ -141,9 +197,19 @@ export class GameState extends Phaser.Events.EventEmitter {
     return Phaser.Math.Clamp(1 - over / (grace * 2), 0, 1);
   }
 
-  /** Save a built food for later. One slot only, so it can't be a dump valve. */
+  /** What pocketing this food costs — bigger food, bigger price. */
+  stashCost(tier: number): number {
+    return tier;
+  }
+
+  canStash(tier: number): boolean {
+    return this.pocket === null && this.pocketCharges >= this.stashCost(tier);
+  }
+
+  /** Save a built food for later. Costs charges by size; one slot only. */
   stash(spec: Spec): boolean {
-    if (this.pocket !== null) return false;
+    if (!this.canStash(spec.tier)) return false;
+    this.pocketCharges -= this.stashCost(spec.tier);
     this.pocket = spec;
     this.emit("changed");
     return true;
@@ -175,6 +241,9 @@ export class GameState extends Phaser.Events.EventEmitter {
    */
   feed(type: FoodType, tier: number): FeedResult | null {
     if (!this.accepts(type, tier)) return null;
+
+    this.totalFeeds++;
+    this.pocketCharges = Math.min(this.pocketCharges + 1, POCKET_CHARGE_CAP);
 
     const growth = tier * 2;
     // Flat pay per craving, rising gently with the monster so late feeds

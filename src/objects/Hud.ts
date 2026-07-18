@@ -40,6 +40,7 @@ export class Hud {
   private cravingDiscs: Phaser.GameObjects.Image[] = [];
   private dropDiscs: Phaser.GameObjects.Image[] = [];
   private chainDiscs: Phaser.GameObjects.Image[] = [];
+  private fedText: Phaser.GameObjects.Text;
 
   /** Seconds left before overflow ends the game, or null when safe. */
   overflowCountdown: number | null = null;
@@ -48,17 +49,25 @@ export class Hud {
     this.state = state;
     const depth = 20;
 
-    this.sizeText = scene.add
-      .text(16, 18, "", { fontFamily: FONT, fontSize: "16px", color: "#eaf0ff" })
-      .setDepth(depth);
+    // Header: the score is the hero, the milestone is a quiet caption beneath
+    // it, and the growth bar is a slim rule under both. One centred column
+    // reads cleaner than the old score-right / label-left split.
     this.scoreText = scene.add
-      .text(GAME.WIDTH - 16, 14, "", {
+      .text(GAME.WIDTH / 2, 16, "", {
         fontFamily: FONT,
-        fontSize: "24px",
-        fontStyle: "500",
+        fontSize: "34px",
+        fontStyle: "600",
         color: "#eaf0ff",
       })
-      .setOrigin(1, 0)
+      .setOrigin(0.5, 0)
+      .setDepth(depth);
+    this.sizeText = scene.add
+      .text(GAME.WIDTH / 2, 56, "", {
+        fontFamily: FONT,
+        fontSize: "11px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5, 0)
       .setDepth(depth);
 
     this.warnText = scene.add
@@ -134,12 +143,25 @@ export class Hud {
       d.setDisplaySize(dia, dia);
       this.chainDiscs.push(d);
     }
+    this.fedText = scene.add
+      .text(GAME.WIDTH / 2, GAME.HEIGHT - 46, "", {
+        fontFamily: FONT,
+        fontSize: "11px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(depth);
   }
 
   update(): void {
     const s = this.state;
-    this.sizeText.setText(`Growing to: ${milestoneName(s.milestone)}`);
-    this.scoreText.setText(`${s.score}`);
+    this.sizeText.setText(`GROWING TO ${milestoneName(s.milestone).toUpperCase()}`);
+    // Thousands separators: scores run to five figures and read as a wall of
+    // digits without them.
+    this.scoreText.setText(s.score.toLocaleString("en-US"));
+    this.fedText.setText(
+      s.totalFeeds === 1 ? "1 fed" : `${s.totalFeeds} fed`
+    );
     paintDisc(this.wantDisc, s.craving);
     this.wantLabel.setText(`${s.craving.tier}`);
     this.chainDiscs.forEach((d, i) => {
@@ -167,12 +189,14 @@ export class Hud {
     const g = this.bars;
     g.clear();
 
-    // growth bar
-    const bw = GAME.WIDTH - 32;
-    g.fillStyle(0xffffff, 0.14);
-    g.fillRoundedRect(16, 48, bw, 11, 5);
+    // Growth: a slim inset rule under the header rather than a full-bleed
+    // slab, so it supports the score instead of competing with it.
+    const bw = 200;
+    const bx = (GAME.WIDTH - bw) / 2;
+    g.fillStyle(0xffffff, 0.12);
+    g.fillRoundedRect(bx, 74, bw, 5, 2.5);
     g.fillStyle(COLORS.teal, 1);
-    g.fillRoundedRect(16, 48, Math.max(3, bw * s.growthProgress), 11, 5);
+    g.fillRoundedRect(bx, 74, Math.max(4, bw * s.growthProgress), 5, 2.5);
 
     // Freshness: the little fuse under the craving. Full = full bonus; it
     // burns down as you take drops, and empty just means base pay.

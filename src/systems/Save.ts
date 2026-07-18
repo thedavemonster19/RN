@@ -10,12 +10,32 @@ const KEY = "monster-muncher/v1";
 
 export const NAME_MAX = 12;
 
+/** A finished run, kept for the profile screen. */
+export interface RunRecord {
+  score: number;
+  milestone: number;
+  feeds: number;
+  drops: number;
+  biggestTier: number;
+}
+
 interface SaveData {
   name: string;
   best: number;
+  /** Stats of the single best run so far. */
+  bestRun: RunRecord | null;
+  runs: number;
+  /** Best daily-challenge score, keyed by date (YYYY-MM-DD). */
+  daily: Record<string, number>;
 }
 
-const DEFAULTS: SaveData = { name: "", best: 0 };
+const DEFAULTS: SaveData = {
+  name: "",
+  best: 0,
+  bestRun: null,
+  runs: 0,
+  daily: {},
+};
 
 /** Names offered when the player can't be bothered to think of one. */
 const SUGGESTIONS = [
@@ -71,12 +91,34 @@ export const Save = {
   get best(): number {
     return read().best;
   },
-  /** Store a finished run. Returns true if it beat the previous best. */
-  recordScore(score: number): boolean {
+  get bestRun(): RunRecord | null {
+    return read().bestRun;
+  },
+  get runs(): number {
+    return read().runs;
+  },
+
+  /** Best score for a given daily challenge, or 0 if unplayed. */
+  dailyBest(key: string): number {
+    return read().daily[key] ?? 0;
+  },
+
+  /**
+   * Store a finished run. Returns true if it beat the previous best.
+   * `dailyKey` records it against that day's challenge as well.
+   */
+  recordRun(run: RunRecord, dailyKey: string | null): boolean {
     const data = read();
-    if (score <= data.best) return false;
-    data.best = score;
+    data.runs++;
+    if (dailyKey && run.score > (data.daily[dailyKey] ?? 0)) {
+      data.daily[dailyKey] = run.score;
+    }
+    const isBest = run.score > data.best;
+    if (isBest) {
+      data.best = run.score;
+      data.bestRun = run;
+    }
     write(data);
-    return true;
+    return isBest;
   },
 };
