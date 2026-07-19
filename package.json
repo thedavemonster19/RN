@@ -6,8 +6,9 @@
   "description": "A calm, endless claw-machine puzzle where you dig for food to feed a growing monster.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "npm run sync:edge && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "sync:edge": "node scripts/sync-edge-shared.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

@@ -6,6 +6,7 @@ import { Save } from "../systems/Save";
 import { makeButton } from "../objects/Button";
 import { tierTexture } from "../data/foods";
 import { Cloud } from "../systems/Cloud";
+import { ReplayEvent } from "../systems/Replay";
 
 const FONT = "system-ui, -apple-system, sans-serif";
 
@@ -17,6 +18,7 @@ interface GameOverData {
   drops: number;
   biggestTier: number;
   dailyKey: string | null;
+  events: ReplayEvent[];
 }
 
 export class GameOverScene extends Phaser.Scene {
@@ -40,7 +42,7 @@ export class GameOverScene extends Phaser.Scene {
     // never block the game-over screen or lose the local record.
     if (Cloud.signedIn) {
       void Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
-      if (data.dailyKey) void Cloud.submitDaily(data.dailyKey, run);
+      if (data.dailyKey) void Cloud.submitDaily(data.dailyKey, run, data.events);
     }
 
     this.add

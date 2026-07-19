@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
 import { RunRecord } from "./Save";
+import { ReplayEvent, REPLAY_VERSION } from "./Replay";
 
 /**
  * Everything that talks to Supabase.
@@ -153,27 +154,34 @@ class CloudService {
   }
 
   /**
-   * Submit a daily-challenge result. Upserts so only one row exists per player
-   * per day. NOTE: this is currently unverified — the score is whatever the
-   * client says it is. See the leaderboard caveat in the project notes.
+   * Submit a daily-challenge result for verification.
+   *
+   * The score is NOT sent as a fact — it goes to the `verify-run` edge
+   * function along with the event log, and the server re-runs the whole
+   * economy from the day's seed to work out the real score itself. The client
+   * cannot write to daily_scores directly (RLS forbids it), so a tampered
+   * score simply fails to reproduce and is rejected.
    */
   async submitDaily(
     dailyKey: string,
-    run: RunRecord
-  ): Promise<{ ok: boolean; error?: string }> {
+    run: RunRecord,
+    events: ReplayEvent[]
+  ): Promise<{ ok: boolean; error?: string; verified?: boolean }> {
     if (!this.client || !this.userId) return { ok: false, error: "Not signed in" };
-    const { error } = await this.client.from("daily_scores").upsert(
-      {
-        user_id: this.userId,
+    const { data, error } = await this.client.functions.invoke("verify-run", {
+      body: {
         daily_key: dailyKey,
         score: run.score,
-        milestone: run.milestone,
-        feeds: run.feeds,
-        drops: run.drops,
+        events,
+        version: REPLAY_VERSION,
       },
-      { onConflict: "user_id,daily_key" }
-    );
-    return error ? { ok: false, error: error.message } : { ok: true };
+    });
+    if (error) return { ok: false, error: error.message };
+    return {
+      ok: !!data?.accepted,
+      verified: !!data?.verified,
+      error: data?.reason,
+    };
   }
 
   async leaderboard(dailyKey: string, limit = 50): Promise<LeaderboardRow[]> {

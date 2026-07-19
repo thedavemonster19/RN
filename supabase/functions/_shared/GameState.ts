@@ -1,12 +1,15 @@
+// GENERATED — do not edit. Copied from src/systems/GameState.ts by scripts/sync-edge-shared.mjs.
+// Edit the original and re-run `npm run sync:edge`.
+
 import {
   TYPES,
   FoodType,
   MAX_TIER,
   MAX_DROP_TIER,
   MIN_CRAVING_TIER,
-} from "../data/foods";
-import { growthReq } from "../data/milestones";
-import { Rng, hashSeed } from "./Rng";
+} from "./foods.ts";
+import { growthReq } from "./milestones.ts";
+import { Rng, hashSeed } from "./Rng.ts";
 
 /** Local clamp — this module is deliberately dependency-free (see below). */
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));

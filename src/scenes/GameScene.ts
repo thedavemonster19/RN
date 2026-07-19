@@ -7,6 +7,7 @@ import { Monster } from "../objects/Monster";
 import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameState";
 import { Save } from "../systems/Save";
+import { Ev, ReplayEvent } from "../systems/Replay";
 import { milestoneName, currentSize } from "../data/milestones";
 
 const FONT = "system-ui, -apple-system, sans-serif";
@@ -38,6 +39,8 @@ export class GameScene extends Phaser.Scene {
   private binGfx!: Phaser.GameObjects.Graphics;
   /** Redrawn every frame: the bin edge glowing as the pile nears the line. */
   private dangerGfx!: Phaser.GameObjects.Graphics;
+  /** Every economic action this run, for server-side verification. */
+  private replayLog: ReplayEvent[] = [];
   /** The last food dropped, while it's still undoable. */
   private lastDrop: { food: Food; spec: Spec; fromPocket: boolean } | null = null;
   private undoLabel!: Phaser.GameObjects.Text;
@@ -65,6 +68,7 @@ export class GameScene extends Phaser.Scene {
     this.press = null;
     this.pocketLoad = null;
     this.lastDrop = null;
+    this.replayLog = [];
     this.overflowSince = null;
     // Ignore the tap that dismissed the menu so it can't trigger a first drop.
     this.inputReady = false;
@@ -162,6 +166,7 @@ export class GameScene extends Phaser.Scene {
     const y = this.pile.clearSpawnY(this.claw.x, r, BIN.railY + 6 + r);
     const food = this.pile.spawn(this.claw.x, y, spec.type, spec.tier);
     this.state.noteTier(spec.tier);
+    this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
     this.lastDrop = { food, spec, fromPocket };
     this.claw.setDispenser(this.currentDrop());
   }
@@ -182,13 +187,13 @@ export class GameScene extends Phaser.Scene {
       this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#9aa3d0");
       return;
     }
+    this.replayLog.push([Ev.Undo, 0]);
     this.pile.remove(last.food);
     if (last.fromPocket) {
       // It came out of the pocket, so it goes back there — not into the queue,
       // which would launder a stashed food into free drops.
       this.state.pocket = last.spec;
       this.state.undosLeft--;
-      this.state.emit("changed");
     } else {
       this.state.returnDrop(last.spec);
     }
@@ -240,6 +245,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const { type, tier } = food;
+    this.replayLog.push([Ev.Feed, tier]);
     this.animateFeed(this.pluck(food), type, tier);
   }
 
@@ -252,6 +258,7 @@ export class GameScene extends Phaser.Scene {
       this.floatText(food.mo.x, food.mo.y - 20, msg, "#9aa3d0");
       return;
     }
+    this.replayLog.push([Ev.Stash, food.tier]);
     this.animateToPocket(this.pluck(food));
   }
 
@@ -316,6 +323,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleMerge(x: number, y: number, type: FoodType, tier: number): void {
+    // `tier` is the tier produced; the log records the tier consumed.
+    this.replayLog.push([Ev.Merge, tier - 1]);
     this.state.addMergeScore(tier);
     this.state.noteTier(tier);
     // The merged food is gone or changed, so the previous drop is no longer
@@ -605,6 +614,7 @@ export class GameScene extends Phaser.Scene {
       drops: this.state.totalDrops,
       biggestTier: this.state.biggestTier,
       dailyKey: this.state.dailyKey,
+      events: this.replayLog,
     });
     this.scene.pause();
   }
