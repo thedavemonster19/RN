@@ -62,34 +62,52 @@ class CloudService {
     return this.session?.user.id ?? null;
   }
 
+  /** True if someone already has this username. */
+  async usernameTaken(username: string): Promise<boolean> {
+    if (!this.client) return false;
+    const { data } = await this.client
+      .from("profiles")
+      .select("username")
+      .ilike("username", username)
+      .limit(1);
+    return !!data && data.length > 0;
+  }
+
   /**
-   * Sign up with email + password, then claim a username.
+   * Sign up with email + password, claiming a username.
    *
    * Email (rather than username-only) is deliberate: Supabase can then handle
    * password resets, which a username-only scheme can't. The username is just
    * the public display name.
+   *
+   * The profile row is created by a database trigger, not here — with email
+   * confirmation enabled, sign-up returns no session, so a client insert would
+   * have no auth.uid() and RLS would (correctly) reject it. We pass the desired
+   * username as user metadata and the trigger picks it up.
+   *
+   * `needsConfirmation` tells the caller to send the player to their inbox
+   * rather than straight into a signed-in state.
    */
   async signUp(
     email: string,
     password: string,
     username: string
-  ): Promise<{ ok: boolean; error?: string }> {
+  ): Promise<{ ok: boolean; error?: string; needsConfirmation?: boolean }> {
     if (!this.client) return { ok: false, error: "Cloud not configured" };
-    const { data, error } = await this.client.auth.signUp({ email, password });
-    if (error) return { ok: false, error: error.message };
-    this.session = data.session;
-    if (!data.user) return { ok: false, error: "Check your email to confirm." };
 
-    const { error: pErr } = await this.client
-      .from("profiles")
-      .insert({ id: data.user.id, username });
-    if (pErr) {
-      return {
-        ok: false,
-        error: pErr.code === "23505" ? "That username is taken." : pErr.message,
-      };
+    if (await this.usernameTaken(username)) {
+      return { ok: false, error: "That username is taken." };
     }
-    return { ok: true };
+
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+    if (error) return { ok: false, error: error.message };
+
+    this.session = data.session;
+    return { ok: true, needsConfirmation: data.session === null };
   }
 
   async signIn(email: string, password: string): Promise<{ ok: boolean; error?: string }> {

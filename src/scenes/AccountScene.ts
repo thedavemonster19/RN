@@ -224,8 +224,21 @@ export class AccountScene extends Phaser.Scene {
         this.message.setColor("#ff9d5c").setText("Pick a username (2+ characters).");
         return;
       }
-      result = await Cloud.signUp(mail, pw, username);
-      if (result.ok) {
+      const signUp = await Cloud.signUp(mail, pw, username);
+      result = signUp;
+      if (signUp.ok && signUp.needsConfirmation) {
+        // Email confirmation is on, so there's no session yet. Park here with
+        // instructions rather than pretending they're signed in.
+        this.busy = false;
+        this.message
+          .setColor("#37e0d0")
+          .setText(
+            `Account created. Check ${mail} for a confirmation link, then sign in.`
+          );
+        this.mode = "in";
+        return;
+      }
+      if (signUp.ok) {
         // Seed the cloud profile with whatever this device already has.
         await Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
       }

@@ -46,6 +46,44 @@ create policy "update own profile"
   with check (auth.uid() = id);
 
 -- ---------------------------------------------------------------------------
+-- Auto-create the profile row when an account is created.
+--
+-- Why a trigger instead of the client inserting it: with email confirmation
+-- switched on (Supabase's default), sign-up returns a user but NO session, so
+-- a client-side insert has no auth.uid() and RLS correctly rejects it. The
+-- trigger runs as the definer, so the profile exists the moment the account
+-- does, confirmed or not. The chosen username rides along in user metadata.
+-- ---------------------------------------------------------------------------
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  wanted text;
+begin
+  wanted := nullif(trim(new.raw_user_meta_data ->> 'username'), '');
+  -- Fall back to a generated handle, and dodge a collision rather than
+  -- failing the whole sign-up.
+  if wanted is null or exists (select 1 from public.profiles where username = wanted) then
+    wanted := 'player' || substr(replace(new.id::text, '-', ''), 1, 8);
+  end if;
+
+  insert into public.profiles (id, username)
+  values (new.id, wanted)
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
 -- daily_scores: one best result per player per daily challenge
 -- ---------------------------------------------------------------------------
 create table if not exists public.daily_scores (
