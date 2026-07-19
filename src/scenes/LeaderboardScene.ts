@@ -10,11 +10,11 @@ const FONT = "system-ui, -apple-system, sans-serif";
 /**
  * Today's daily-challenge standings.
  *
- * Scores here are NOT yet server-verified — the client reports its own number,
- * so a determined player could submit anything. The game is deterministic given
- * a seed plus inputs, so the fix is to re-simulate submitted runs server-side;
- * until that exists, this screen says so plainly rather than implying the
- * ranking is authoritative.
+ * Every score here has been re-derived server-side by the verify-run edge
+ * function: the client submits its event log, never a score, and the server
+ * replays the run from the day's seed to work out the number itself. Clients
+ * have no write access to the scores table at all, so the function cannot be
+ * bypassed, and the view only exposes rows flagged verified.
  */
 export class LeaderboardScene extends Phaser.Scene {
   constructor() {
@@ -127,12 +127,11 @@ export class LeaderboardScene extends Phaser.Scene {
         .setOrigin(1, 0.5);
     });
 
-    // Be honest about what this ranking is worth right now.
     this.add
       .text(
         WIDTH / 2,
         top + Math.min(rows.length, 12) * 34 + 22,
-        "Scores are self-reported and not yet verified.",
+        "Every score replayed and verified on the server.",
         { fontFamily: FONT, fontSize: "10px", color: "#6f78a8" }
       )
       .setOrigin(0.5);
