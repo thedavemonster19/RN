@@ -42,10 +42,12 @@ export const BIN = {
   railY: 92,
 } as const;
 
-/** Where the monster sits and receives food (it scales up as it grows). */
+/** Where the monster sits and receives food (it scales up as it grows).
+ *  Kept high enough that a fully-grown monster's name label still clears the
+ *  fed counter and the food-chain bar along the bottom. */
 export const MONSTER = {
   x: 200,
-  y: 588,
+  y: 560,
 } as const;
 
 /**

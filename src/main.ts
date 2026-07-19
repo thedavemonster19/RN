@@ -7,6 +7,7 @@ import { GameOverScene } from "./scenes/GameOverScene";
 import { ProfileScene } from "./scenes/ProfileScene";
 import { AccountScene } from "./scenes/AccountScene";
 import { LeaderboardScene } from "./scenes/LeaderboardScene";
+import { CustomizeScene } from "./scenes/CustomizeScene";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -47,6 +48,7 @@ const config: Phaser.Types.Core.GameConfig = {
     ProfileScene,
     AccountScene,
     LeaderboardScene,
+    CustomizeScene,
   ],
 };
 

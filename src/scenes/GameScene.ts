@@ -21,6 +21,14 @@ const SWIPE_UP = 55;
 type Press = { food: Food; x: number; y: number };
 
 export class GameScene extends Phaser.Scene {
+  /**
+   * Is there a run the player could still come back to? Set when a game
+   * starts, cleared when it ends, so the menu knows whether to offer
+   * "Continue" or "New game". A static flag rather than scene-state probing
+   * because a paused scene and a finished scene look identical from outside.
+   */
+  static hasActiveRun = false;
+
   private pile!: FoodPile;
   private claw!: Claw;
   private monster!: Monster;
@@ -63,6 +71,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    GameScene.hasActiveRun = true;
     this.over = false;
     this.aiming = false;
     this.press = null;
@@ -101,6 +110,7 @@ export class GameScene extends Phaser.Scene {
     this.createPocketUI();
     this.createUndoButton();
     this.createHelpButton();
+    this.createLeaveButton();
     this.hud.update();
   }
 
@@ -472,6 +482,34 @@ export class GameScene extends Phaser.Scene {
     this.floatText(this.claw.x, BIN.railY + 34, "from pocket", "#9aa3d0");
   }
 
+  /**
+   * Step out to the menu without losing the run. `scene.switch` puts this
+   * scene to sleep rather than stopping it, so the pile, score and event log
+   * are all still here when the player picks "Continue".
+   */
+  private createLeaveButton(): void {
+    const bx = 26;
+    const by = 26;
+    const btn = this.add
+      .circle(bx, by, 16, 0xffffff, 0.08)
+      .setStrokeStyle(1, 0xffffff, 0.25)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(bx, by - 1, "‹", {
+        fontFamily: FONT,
+        fontSize: "22px",
+        fontStyle: "600",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(31);
+    btn.on("pointerdown", () => {
+      if (this.over) return;
+      this.scene.switch("Menu");
+    });
+  }
+
   private createHelpButton(): void {
     const bx = GAME.WIDTH - 26;
     const by = GAME.HEIGHT - 26;
@@ -606,6 +644,7 @@ export class GameScene extends Phaser.Scene {
   private gameOver(reason: GameOverReason): void {
     if (this.over) return;
     this.over = true;
+    GameScene.hasActiveRun = false;
     this.scene.launch("GameOver", {
       score: this.state.score,
       milestone: this.state.milestone,

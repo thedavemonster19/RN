@@ -7,8 +7,21 @@ const BASE_SCALE = 0.4;
 const MAX_SCALE = 1.1;
 /** Half the drawn body height, for placing the size label below. */
 const BODY_HALF = 64;
+/** The lowest the name/size label may sit before it collides with the fed
+ *  counter and the food-chain bar. */
+const LABEL_MAX_Y = 646;
 
 type Face = "happy" | "eating" | "refuse";
+
+/**
+ * One aura colour per size milestone, cycling once it runs off the end. Ordered
+ * to feel like it's heating up as the monster grows — teal, green, gold, coral,
+ * violet, blue — so a level-up reads as a visible change of state.
+ */
+const AURA_COLORS = [
+  0x37e0d0, 0x8ad155, 0xffd66b, 0xf7b955, 0xf27a9b, 0xe05ac8, 0x9b7bd4,
+  0x5b9be2,
+];
 
 /**
  * The monster: a soft, round-but-not-spherical blob — a wide sitting body with
@@ -24,6 +37,8 @@ export class Monster {
   readonly x: number;
   readonly y: number;
   private container: Phaser.GameObjects.Container;
+  private aura: Phaser.GameObjects.Graphics;
+  private auraPulse?: Phaser.Tweens.Tween;
   private face: Phaser.GameObjects.Graphics;
   private sizeLabel: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
@@ -35,14 +50,19 @@ export class Monster {
     this.x = x;
     this.y = y;
 
+    // The aura sits behind the body inside the same container, so it scales
+    // with the monster automatically.
+    this.aura = scene.add.graphics();
     const body = scene.add.graphics();
     this.drawBody(body);
     this.face = scene.add.graphics();
 
     this.container = scene.add
-      .container(x, y, [body, this.face])
+      .container(x, y, [this.aura, body, this.face])
       .setDepth(1)
       .setScale(this.baseScale);
+
+    this.drawAura(0);
 
     this.sizeLabel = scene.add
       .text(x, y, "0.3 m", {
@@ -56,6 +76,28 @@ export class Monster {
 
     this.setFace("happy");
     this.layoutLabels();
+  }
+
+  /**
+   * A soft halo whose colour marks the current milestone and whose reach grows
+   * with it. Drawn as a few nested rings at low alpha rather than a real blur,
+   * which Graphics can't do — cheap, and it reads as a glow at these sizes.
+   */
+  private drawAura(milestone: number): void {
+    const g = this.aura;
+    g.clear();
+    if (milestone <= 0) return; // a newborn has nothing to show off yet
+
+    const color = AURA_COLORS[(milestone - 1) % AURA_COLORS.length];
+    // Reach grows with milestone but flattens, so late levels don't swamp the
+    // screen. Rings fade outward.
+    const spread = 62 + Math.min(milestone, 10) * 7;
+    const rings = 5;
+    for (let i = rings; i >= 1; i--) {
+      const t = i / rings;
+      g.fillStyle(color, 0.1 * (1 - t) + 0.03);
+      g.fillEllipse(0, 6, spread * 2 * t, spread * 1.85 * t);
+    }
   }
 
   /** The blob itself — everything that never changes with mood. */
@@ -142,10 +184,13 @@ export class Monster {
     g.strokePath();
   }
 
-  /** Keep the size label below the (growing) body. */
+  /**
+   * Keep the size label below the (growing) body — but never so low that a
+   * fully-grown monster pushes it into the HUD along the bottom of the screen.
+   */
   private layoutLabels(): void {
     const halfH = BODY_HALF * this.container.scaleY;
-    this.sizeLabel.setY(this.y + halfH + 22);
+    this.sizeLabel.setY(Math.min(this.y + halfH + 22, LABEL_MAX_Y));
   }
 
   eat(): void {
@@ -171,6 +216,44 @@ export class Monster {
       ease: "Back.easeOut",
       onUpdate: () => this.layoutLabels(),
     });
+
+    // New size, new colour: flare the aura bright for a beat, then settle into
+    // a slow breathing loop so the level-up is felt and then lives on quietly.
+    this.drawAura(milestone);
+    this.auraPulse?.remove();
+    this.aura.setAlpha(0);
+    this.scene.tweens.add({
+      targets: this.aura,
+      alpha: { from: 0, to: 1.6 },
+      duration: 260,
+      ease: "Quad.easeOut",
+      yoyo: true,
+      onComplete: () => this.startAuraBreathing(),
+    });
+  }
+
+  /** A slow, low-contrast pulse so the aura is alive without being noisy. */
+  private startAuraBreathing(): void {
+    this.auraPulse?.remove();
+    this.aura.setAlpha(1);
+    this.auraPulse = this.scene.tweens.add({
+      targets: this.aura,
+      alpha: { from: 0.75, to: 1.12 },
+      duration: 1900,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  /** Restore the aura for a milestone without replaying the level-up flare —
+   *  used when a scene rebuilds the monster mid-run. */
+  setMilestone(milestone: number): void {
+    this.baseScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
+    this.container.setScale(this.baseScale);
+    this.drawAura(milestone);
+    if (milestone > 0) this.startAuraBreathing();
+    this.layoutLabels();
   }
 
   /** Anything but the exact craving gets a head shake. */

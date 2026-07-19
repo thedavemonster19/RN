@@ -5,6 +5,7 @@ import { makeButton, Button } from "../objects/Button";
 import { openNameEntry } from "../objects/NameEntry";
 import { Save } from "../systems/Save";
 import { todayKey } from "../systems/Rng";
+import { GameScene } from "./GameScene";
 
 const FONT = "system-ui, -apple-system, sans-serif";
 
@@ -85,33 +86,49 @@ export class MenuScene extends Phaser.Scene {
     const top = MenuScene.BUTTON_TOP;
     const gap = MenuScene.BUTTON_GAP;
     this.buttons.forEach((b) => b.destroy());
-    this.buttons = [
-      makeButton(this, {
+
+    // If a run is paused in the background, the top button resumes it rather
+    // than throwing it away.
+    const resuming = GameScene.hasActiveRun;
+    const rows: Parameters<typeof makeButton>[1][] = [
+      {
         x: WIDTH / 2,
         y: top,
-        label: "Play",
+        label: resuming ? "Continue" : "New game",
         primary: true,
-        onClick: () => this.startGame(null),
-      }),
-      makeButton(this, {
+        onClick: () => (resuming ? this.resumeGame() : this.startGame(null)),
+      },
+      {
         x: WIDTH / 2,
         y: top + gap,
         label: "Daily challenge",
         onClick: () => this.startGame(todayKey()),
-      }),
-      makeButton(this, {
+      },
+      {
         x: WIDTH / 2,
         y: top + gap * 2,
         label: "Leaderboard",
         onClick: () => this.scene.start("Leaderboard"),
-      }),
-      makeButton(this, {
+      },
+      {
         x: WIDTH / 2,
         y: top + gap * 3,
         label: "Profile",
         onClick: () => this.scene.start("Profile"),
-      }),
+      },
+      {
+        x: WIDTH / 2,
+        y: top + gap * 4,
+        label: "Customize",
+        onClick: () => this.scene.start("Customize"),
+      },
     ];
+    this.buttons = rows.map((r) => makeButton(this, r));
+  }
+
+  /** Wake the paused Game scene right where the player left it. */
+  private resumeGame(): void {
+    this.scene.switch("Game");
   }
 
   private promptName(forced: boolean): void {
@@ -131,6 +148,11 @@ export class MenuScene extends Phaser.Scene {
       this.promptName(true);
       return;
     }
+    // Starting a fresh run: fully stop any paused game first, so scene.start
+    // re-runs create() rather than waking the old one, and clear the run flag
+    // so a half-finished game isn't silently abandoned as "in progress".
+    GameScene.hasActiveRun = false;
+    this.scene.stop("Game");
     this.scene.start("Game", dailyKey ? { dailyKey } : {});
   }
 
