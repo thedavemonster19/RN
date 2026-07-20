@@ -17,10 +17,35 @@ export interface Food {
   merging: boolean;
   /** Frames left of body grow-in (merged food inflates instead of appearing). */
   growing: number;
+  /** Frames since it entered the world — see SETTLE_GRACE. */
+  age: number;
+  /** Consecutive frames spent below SETTLED_SPEED — see REST_FRAMES. */
+  restFrames: number;
 }
 
 /** A body counts as "settled" (part of the pile) below this speed. */
 const SETTLED_SPEED = 1.6;
+
+/**
+ * Frames a food must exist before it can count toward the pile height.
+ *
+ * A food spawns with zero velocity, so for its first frame it looks perfectly
+ * "settled" — while sitting up at the rail, above the danger line. That made
+ * the overflow warning flash on every single drop. Waiting a few frames lets
+ * gravity get hold of it first.
+ */
+const SETTLE_GRACE = 8;
+
+/**
+ * Consecutive slow frames before a food counts as part of the pile.
+ *
+ * Instantaneous speed isn't enough: a food is momentarily motionless at the
+ * apex of a bounce, and a piece shoved upward when a drop lands hangs still for
+ * an instant at the top of its arc. Either would briefly register as a settled
+ * food above the danger line and flash the overflow warning. Requiring a run of
+ * quiet frames means only food that has genuinely come to rest counts.
+ */
+const REST_FRAMES = 6;
 
 /**
  * Collision padding: the physics body is a hair bigger than the visible disc,
@@ -68,17 +93,26 @@ export class FoodPile {
    *  re-applied every time — this is the one place that knows them. */
   private setBody(mo: Phaser.Physics.Matter.Image, radius: number): void {
     mo.setCircle(radius + BODY_PAD, {
-      restitution: 0,
-      // Light bodies + a little air drag so contacts resolve gently and the
-      // pile bleeds off motion and sleeps, instead of the solver violently
-      // shoving overlapping bodies around every frame.
-      friction: 0.4,
-      frictionStatic: 0.7,
-      frictionAir: 0.02,
-      density: 0.008,
+      // These are balls, and they should behave like it. The old values
+      // (friction .4 / static .7) made the pile behave like sandbags: you
+      // couldn't nudge a ball into position by dropping another one on it,
+      // which is a real technique for lining up merges. Low friction lets them
+      // roll and transmit a shove; a whisper of restitution keeps that lively
+      // without turning the bin into a pinball table.
+      restitution: 0.06,
+      // Measured: at 0.4/0.7 (the old sandbag values) a dropped ball barely
+      // moved its neighbour. At 0.06 it shoved it ~110px, clean across the bin
+      // into the wall, which made stacking impossible. 0.12 lands at ~59px —
+      // a decisive nudge you can aim with, that still comes to rest.
+      friction: 0.12,
+      frictionStatic: 0.22,
+      frictionAir: 0.01,
+      density: 0.0035,
     });
-    // Sleep quickly after a nudge so re-settling can't visibly creep.
-    (mo.body as MatterJS.BodyType).sleepThreshold = 24;
+    // Sleep quickly once genuinely at rest, so a settled pile stops being
+    // re-solved every frame — that constant re-solving is what reads as
+    // rattling and squeezing.
+    (mo.body as MatterJS.BodyType).sleepThreshold = 18;
   }
 
   spawn(
@@ -103,6 +137,8 @@ export class FoodPile {
       radius,
       merging: false,
       growing: growIn ? GROW_FRAMES : 0,
+      age: 0,
+      restFrames: 0,
     };
     this.items.push(food);
     return food;
@@ -115,6 +151,14 @@ export class FoodPile {
    * tested again on the following pass.
    */
   update(): void {
+    for (const f of this.items) {
+      f.age++;
+      const b = f.mo.body as MatterJS.BodyType;
+      const speed = Math.hypot(b.velocity.x, b.velocity.y);
+      // A sleeping body reports no velocity and is definitively at rest.
+      f.restFrames = speed < SETTLED_SPEED || b.isSleeping ? f.restFrames + 1 : 0;
+    }
+
     // Inflate freshly-merged bodies one step per frame. Rebuilding the collider
     // zeroes the body's velocity, which doubles as damping on the merge pop.
     for (const f of this.items) {
@@ -229,9 +273,9 @@ export class FoodPile {
   settledTop(): number {
     let top: number = BIN.floor;
     for (const f of this.items) {
-      const b = f.mo.body as MatterJS.BodyType;
-      const speed = Math.hypot(b.velocity.x, b.velocity.y);
-      if (speed < SETTLED_SPEED) top = Math.min(top, f.mo.y - f.radius);
+      if (f.age < SETTLE_GRACE) continue; // still on its way down
+      if (f.restFrames < REST_FRAMES) continue; // bouncing or being jostled
+      top = Math.min(top, f.mo.y - f.radius);
     }
     return top;
   }

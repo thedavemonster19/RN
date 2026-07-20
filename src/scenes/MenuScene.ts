@@ -21,9 +21,11 @@ export class MenuScene extends Phaser.Scene {
   private monster!: Monster;
   private buttons: Button[] = [];
   private bestText!: Phaser.GameObjects.Text;
+  private bestLabel!: Phaser.GameObjects.Text;
+  private nameText!: Phaser.GameObjects.Text;
 
-  private static BUTTON_TOP = 404;
-  private static BUTTON_GAP = 64;
+  private static BUTTON_TOP = 412;
+  private static BUTTON_GAP = 61;
 
   constructor() {
     super("Menu");
@@ -43,38 +45,42 @@ export class MenuScene extends Phaser.Scene {
     );
     g.fillRect(0, 0, WIDTH, HEIGHT);
 
-    this.add
-      .text(WIDTH / 2, 96, "Monster Muncher", {
+    // Best score leads: it's the number the player is here to beat.
+    this.bestText = this.add
+      .text(WIDTH / 2, 40, "", {
         fontFamily: FONT,
-        fontSize: "32px",
+        fontSize: "34px",
+        fontStyle: "600",
+        color: "#ffe08a",
+      })
+      .setOrigin(0.5, 0);
+    this.bestLabel = this.add
+      .text(WIDTH / 2, 24, "", {
+        fontFamily: FONT,
+        fontSize: "10px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5, 0);
+
+    this.add
+      .text(WIDTH / 2, 102, "Monster Muncher", {
+        fontFamily: FONT,
+        fontSize: "24px",
         fontStyle: "500",
         color: "#eaf0ff",
       })
       .setOrigin(0.5);
-    this.add
-      .text(WIDTH / 2, 132, "Drop food, merge it up,\nfeed it what it wants.", {
-        fontFamily: FONT,
-        fontSize: "14px",
-        color: "#9aa3d0",
-        align: "center",
-        lineSpacing: 5,
-      })
-      .setOrigin(0.5);
 
-    // The actual monster, so the name on screen is attached to the thing it
-    // names rather than being an abstract setting.
-    this.monster = new Monster(this, WIDTH / 2, 276);
-    this.monster.setName(Save.name);
+    // The monster is the star of the home screen, so give it room. It wears
+    // the aura earned by the best run, but at a fixed size so the layout below
+    // it is predictable. Its own label is hidden — the tappable name replaces it.
+    this.monster = new Monster(this, WIDTH / 2, 244);
+    this.monster.setMilestone(Save.bestRun?.milestone ?? 0);
+    this.monster.setLabelVisible(false);
+    this.monster.showAt(0.85);
 
+    this.createNameButton();
     this.stackButtons();
-
-    this.bestText = this.add
-      .text(WIDTH / 2, HEIGHT - 46, "", {
-        fontFamily: FONT,
-        fontSize: "13px",
-        color: "#9aa3d0",
-      })
-      .setOrigin(0.5);
     this.refreshBest();
 
     // First run: there's nothing to play as yet, so name it before anything else.
@@ -131,11 +137,50 @@ export class MenuScene extends Phaser.Scene {
     this.scene.switch("Game");
   }
 
+  /**
+   * The monster's name, sitting under it and tappable. A name attached to the
+   * thing it names is more discoverable than a "Rename" entry buried in a
+   * menu — you tap what you want to change.
+   */
+  private createNameButton(): void {
+    const { WIDTH } = GAME;
+    const y = 338;
+    this.nameText = this.add
+      .text(WIDTH / 2, y, "", {
+        fontFamily: FONT,
+        fontSize: "24px",
+        fontStyle: "600",
+        color: "#eaf0ff",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(WIDTH / 2, y + 22, "tap to rename", {
+        fontFamily: FONT,
+        fontSize: "10px",
+        color: "#6f78a8",
+      })
+      .setOrigin(0.5);
+
+    // A zone rather than making the text interactive, so the tap target stays
+    // a comfortable size even for a short name.
+    this.add
+      .zone(WIDTH / 2, y + 4, 240, 56)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => this.promptName(false));
+
+    this.refreshName();
+  }
+
+  private refreshName(): void {
+    this.nameText.setText(Save.name || "Name me");
+  }
+
   private promptName(forced: boolean): void {
     openNameEntry(this, {
       forced,
       onSaved: (name) => {
         this.monster.setName(name);
+        this.refreshName();
         this.stackButtons();
       },
     });
@@ -157,8 +202,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private refreshBest(): void {
-    this.bestText.setText(
-      Save.best > 0 ? `Best  ${Save.best.toLocaleString("en-US")}` : ""
-    );
+    const has = Save.best > 0;
+    this.bestLabel.setText(has ? "BEST SCORE" : "");
+    this.bestText.setText(has ? Save.best.toLocaleString("en-US") : "");
   }
 }

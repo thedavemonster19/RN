@@ -38,16 +38,57 @@ export class GameOverScene extends Phaser.Scene {
     };
     const isBest = Save.recordRun(run, data.dailyKey);
 
-    // Mirror to the cloud when signed in. Fire-and-forget: a failed sync must
-    // never block the game-over screen or lose the local record.
-    if (Cloud.signedIn) {
-      void Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
-      if (data.dailyKey) void Cloud.submitDaily(data.dailyKey, run, data.events);
-    }
-
+    // The dimming overlay goes down FIRST so everything after it draws on top.
+    // It used to be added late, which silently hid the sync status behind it —
+    // a daily run that never posted looked like it had just done nothing.
     this.add
       .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.9)
       .setOrigin(0.5);
+
+    // A daily run that never reaches the leaderboard is the single most
+    // confusing outcome here, so the result is always reported rather than
+    // silently dropped. Still fire-and-forget: nothing blocks this screen.
+    const syncNote = this.add
+      .text(WIDTH / 2, 92, "", {
+        fontFamily: FONT,
+        fontSize: "12px",
+        color: "#9aa3d0",
+        align: "center",
+        wordWrap: { width: WIDTH - 60 },
+      })
+      .setOrigin(0.5)
+      .setDepth(10);
+
+    if (data.dailyKey) syncNote.setText("Checking sign-in…");
+    // Wait for the stored session to load before deciding — otherwise a quick
+    // game-over can conclude "signed out" while the session is still loading.
+    void Cloud.ready.then(() => {
+      if (!Cloud.signedIn) {
+        if (data.dailyKey) {
+          syncNote
+            .setText("Not posted — sign in to join the leaderboard")
+            .setColor("#ff9d5c");
+        } else {
+          syncNote.setText("");
+        }
+        return;
+      }
+      void Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
+      if (!data.dailyKey) {
+        syncNote.setText("");
+        return;
+      }
+      syncNote.setText("Posting to leaderboard…");
+      void Cloud.submitDaily(data.dailyKey, run, data.events).then((r) => {
+        if (r.ok && r.verified) {
+          syncNote.setText("Verified and posted to the leaderboard").setColor("#37e0d0");
+        } else {
+          syncNote
+            .setText(`Not posted: ${r.error ?? "unknown error"}`)
+            .setColor("#ff9d5c");
+        }
+      });
+    });
 
     const top = 120;
     this.add

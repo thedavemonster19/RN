@@ -8,6 +8,7 @@ import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameState";
 import { Save } from "../systems/Save";
 import { Ev, ReplayEvent } from "../systems/Replay";
+import { makeButton } from "../objects/Button";
 import { milestoneName, currentSize } from "../data/milestones";
 
 const FONT = "system-ui, -apple-system, sans-serif";
@@ -41,6 +42,15 @@ export class GameScene extends Phaser.Scene {
   private press: Press | null = null;
   /** A food taken back out of the pocket, riding the claw as the next drop. */
   private pocketLoad: Spec | null = null;
+  /**
+   * True while a food is arcing into the monster's mouth.
+   *
+   * Feeding has to be one-at-a-time. The arc takes ~520ms, and the craving
+   * advances the moment a feed lands — so a second tap during the flight would
+   * arrive to find a different craving, get rejected, and the food would be
+   * destroyed for nothing. (Measured: 56 taps produced only 7 real feeds.)
+   */
+  private feeding = false;
 
   private over = false;
   private inputReady = false;
@@ -77,6 +87,9 @@ export class GameScene extends Phaser.Scene {
     this.press = null;
     this.pocketLoad = null;
     this.lastDrop = null;
+    // Must reset: a run that ended mid-arc would otherwise leave the next game
+    // permanently unable to feed.
+    this.feeding = false;
     this.replayLog = [];
     this.overflowSince = null;
     // Ignore the tap that dismissed the menu so it can't trigger a first drop.
@@ -243,6 +256,8 @@ export class GameScene extends Phaser.Scene {
    * and the food stays where it was — a refusal never disturbs the pile.
    */
   private feedFood(food: Food): void {
+    // One mouthful at a time — see `feeding`.
+    if (this.feeding) return;
     if (!this.state.accepts(food.type, food.tier)) {
       this.monster.refuse();
       const want = this.state.craving.tier;
@@ -255,7 +270,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const { type, tier } = food;
-    this.replayLog.push([Ev.Feed, tier]);
+    this.feeding = true;
+    // The event is NOT logged here — see animateFeed. It has to be recorded at
+    // the moment the state actually changes, not when the tap happens.
     this.animateFeed(this.pluck(food), type, tier);
   }
 
@@ -293,7 +310,19 @@ export class GameScene extends Phaser.Scene {
       },
       onComplete: () => {
         spr.destroy();
+        this.feeding = false;
+        // Log the feed at the instant it is applied, never when it was tapped.
+        // The food takes ~520ms to arc into the monster, and a quick player
+        // drops more food in the meantime. Those drops age the craving and
+        // shrink its freshness bonus, so a log that claimed the feed happened
+        // first replayed to a HIGHER score than the client actually scored —
+        // and the server rejected the run for mismatching. Recording it here
+        // keeps the log in the same order as the state changes.
+        this.feeding = false;
         const result = this.state.feed(type, tier);
+        // Only log a feed the state actually accepted, so the log can never
+        // describe something that didn't happen.
+        if (result) this.replayLog.push([Ev.Feed, tier]);
         if (result) this.applyFeed(result, type);
       },
     });
@@ -506,8 +535,92 @@ export class GameScene extends Phaser.Scene {
       .setDepth(31);
     btn.on("pointerdown", () => {
       if (this.over) return;
-      this.scene.switch("Menu");
+      this.askLeave();
     });
+  }
+
+  /**
+   * Leaving is ambiguous — stepping away for a minute and abandoning the run
+   * are very different intentions, and guessing wrong either loses progress or
+   * traps the player in a game they wanted to end. So ask.
+   */
+  private askLeave(): void {
+    const { WIDTH, HEIGHT } = GAME;
+    const depth = 60;
+    const cy = HEIGHT / 2 - 20;
+
+    const shade = this.add
+      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.88)
+      .setDepth(depth)
+      .setInteractive();
+    const panel = this.add.graphics().setDepth(depth + 1);
+    panel.fillStyle(0xffffff, 0.06);
+    panel.fillRoundedRect(WIDTH / 2 - 150, cy - 96, 300, 268, 18);
+    panel.lineStyle(1.5, 0xffffff, 0.14);
+    panel.strokeRoundedRect(WIDTH / 2 - 150, cy - 96, 300, 268, 18);
+
+    const title = this.add
+      .text(WIDTH / 2, cy - 62, "Leave the game?", {
+        fontFamily: FONT,
+        fontSize: "20px",
+        fontStyle: "600",
+        color: "#eaf0ff",
+      })
+      .setOrigin(0.5)
+      .setDepth(depth + 2);
+    const body = this.add
+      .text(WIDTH / 2, cy - 30, "Your run is kept until you quit.", {
+        fontFamily: FONT,
+        fontSize: "12px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(depth + 2);
+
+    const parts: { destroy(): void }[] = [];
+    const close = () => {
+      shade.destroy();
+      panel.destroy();
+      title.destroy();
+      body.destroy();
+      parts.forEach((p) => p.destroy());
+    };
+
+    parts.push(
+      makeButton(this, {
+        x: WIDTH / 2,
+        y: cy + 12,
+        label: "Leave — keep run",
+        primary: true,
+        width: 250,
+        depth: depth + 2,
+        onClick: () => {
+          close();
+          this.scene.switch("Menu");
+        },
+      }),
+      makeButton(this, {
+        x: WIDTH / 2,
+        y: cy + 76,
+        label: "Quit — end run",
+        width: 250,
+        depth: depth + 2,
+        onClick: () => {
+          close();
+          // Ending deliberately still counts as a finished run, so the score
+          // is recorded rather than silently thrown away.
+          this.gameOver("overflow");
+        },
+      }),
+      makeButton(this, {
+        x: WIDTH / 2,
+        y: cy + 140,
+        label: "Cancel",
+        width: 250,
+        depth: depth + 2,
+        onClick: close,
+      })
+    );
   }
 
   private createHelpButton(): void {

@@ -127,13 +127,35 @@ export class LeaderboardScene extends Phaser.Scene {
         .setOrigin(1, 0.5);
     });
 
+    const footY = top + Math.min(rows.length, 12) * 34 + 22;
     this.add
-      .text(
-        WIDTH / 2,
-        top + Math.min(rows.length, 12) * 34 + 22,
-        "Every score replayed and verified on the server.",
-        { fontFamily: FONT, fontSize: "10px", color: "#6f78a8" }
-      )
+      .text(WIDTH / 2, footY, "Every score replayed and verified on the server.", {
+        fontFamily: FONT,
+        fontSize: "10px",
+        color: "#6f78a8",
+      })
       .setOrigin(0.5);
+
+    // Signed out is the most likely reason a player's own run is missing here,
+    // so say so instead of leaving them to wonder.
+    if (!Cloud.signedIn) {
+      const mine = Save.dailyBest(todayKey());
+      this.add
+        .text(
+          WIDTH / 2,
+          footY + 26,
+          mine
+            ? `Your score today: ${mine.toLocaleString("en-US")} — sign in to post it`
+            : "Sign in to post your score here",
+          { fontFamily: FONT, fontSize: "12px", color: "#ff9d5c" }
+        )
+        .setOrigin(0.5);
+      makeButton(this, {
+        x: WIDTH / 2,
+        y: footY + 78,
+        label: "Sign in",
+        onClick: () => this.scene.start("Account"),
+      });
+    }
   }
 }

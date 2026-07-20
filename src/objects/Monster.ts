@@ -272,6 +272,30 @@ export class Monster {
     });
   }
 
+  /** Hide the built-in label where the scene draws its own (e.g. the menu's
+   *  tappable name). */
+  setLabelVisible(visible: boolean): void {
+    this.sizeLabel.setVisible(visible);
+  }
+
+  /**
+   * Pin the monster to an exact on-screen scale, ignoring its milestone size.
+   *
+   * Absolute rather than a multiplier on purpose: a showcase screen needs a
+   * predictable footprint to lay out around. Multiplying by the milestone
+   * scale meant a well-grown monster overflowed its slot and covered the text
+   * beneath it.
+   */
+  showAt(scale: number): void {
+    this.container.setScale(scale);
+    this.layoutLabels();
+  }
+
+  /** Half the drawn body height at the current scale — for laying out around it. */
+  get displayHalfHeight(): number {
+    return BODY_HALF * this.container.scaleY;
+  }
+
   /** The player's name for it — shown wherever the monster is. */
   setName(name: string): void {
     this.monsterName = name;

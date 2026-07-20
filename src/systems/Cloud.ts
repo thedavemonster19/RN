@@ -36,18 +36,27 @@ export interface CloudProfile {
 class CloudService {
   private client: SupabaseClient | null = null;
   private session: Session | null = null;
+  /**
+   * Resolves once the stored session has been read back from disk.
+   *
+   * Restoring a session is asynchronous, so anything that asks "is the player
+   * signed in?" during the first moments after load can get a false negative —
+   * which would silently skip posting a score. Await this first.
+   */
+  readonly ready: Promise<void>;
 
   constructor() {
-    if (URL && ANON_KEY) {
-      this.client = createClient(URL, ANON_KEY);
-      // Pick up an existing session on boot, and follow sign-in/sign-out.
-      this.client.auth.getSession().then(({ data }) => {
-        this.session = data.session;
-      });
-      this.client.auth.onAuthStateChange((_event, session) => {
-        this.session = session;
-      });
+    if (!URL || !ANON_KEY) {
+      this.ready = Promise.resolve();
+      return;
     }
+    this.client = createClient(URL, ANON_KEY);
+    this.ready = this.client.auth.getSession().then(({ data }) => {
+      this.session = data.session;
+    });
+    this.client.auth.onAuthStateChange((_event, session) => {
+      this.session = session;
+    });
   }
 
   /** False until the project URL + anon key are configured. */
