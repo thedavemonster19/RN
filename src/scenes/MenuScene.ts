@@ -5,6 +5,7 @@ import { makeButton, Button } from "../objects/Button";
 import { openNameEntry } from "../objects/NameEntry";
 import { Save } from "../systems/Save";
 import { todayKey } from "../systems/Rng";
+import { dailyModifiers, MODS } from "../systems/Modifiers";
 import { GameScene } from "./GameScene";
 
 const FONT = "system-ui, -apple-system, sans-serif";
@@ -110,6 +111,7 @@ export class MenuScene extends Phaser.Scene {
         label: "Daily challenge",
         onClick: () => this.startGame(todayKey()),
       },
+      // (a caption naming today's modifiers is drawn under this button below)
       {
         x: WIDTH / 2,
         y: top + gap * 2,
@@ -130,6 +132,20 @@ export class MenuScene extends Phaser.Scene {
       },
     ];
     this.buttons = rows.map((r) => makeButton(this, r));
+
+    // Name today's daily twist in a footer, so the modifiers are known before
+    // committing to a run without crowding the button stack.
+    const mods = dailyModifiers(todayKey())
+      .map((id) => MODS[id].name)
+      .join("  ·  ");
+    this.add
+      .text(GAME.WIDTH / 2, GAME.HEIGHT - 40, `Daily twist:  ${mods}`, {
+        fontFamily: FONT,
+        fontSize: "11px",
+        color: "#9aa3d0",
+      })
+      .setOrigin(0.5)
+      .setDepth(5);
   }
 
   /** Wake the paused Game scene right where the player left it. */

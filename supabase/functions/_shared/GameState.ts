@@ -10,6 +10,7 @@ import {
 } from "./foods.ts";
 import { growthReq } from "./milestones.ts";
 import { Rng, hashSeed } from "./Rng.ts";
+import { ModId, dailyModifiers } from "./Modifiers.ts";
 
 /** Local clamp — this module is deliberately dependency-free (see below). */
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -108,12 +109,16 @@ export class GameState {
   undosLeft = UNDOS_PER_RUN;
   /** Set for a daily-challenge run: everyone gets this same food sequence. */
   readonly dailyKey: string | null;
+  /** Active daily modifiers — empty for a normal run. Derived from the key so
+   *  the server reproduces the same set. */
+  readonly mods: ModId[];
 
   private rng: Rng;
 
   /** Pass a daily key to get a deterministic run everyone else also gets. */
   constructor(dailyKey: string | null = null) {
     this.dailyKey = dailyKey;
+    this.mods = dailyKey ? dailyModifiers(dailyKey) : [];
     this.rng = new Rng(dailyKey ? hashSeed(dailyKey) : (Math.random() * 2 ** 32) >>> 0);
     this.craving = this.rollCraving();
     for (let i = 0; i < CRAVING_QUEUE_LEN; i++)
@@ -129,10 +134,20 @@ export class GameState {
    * starting low, since a small ask might be feedable straight off the queue
    * while the next needs a real build.
    */
+  has(mod: ModId): boolean {
+    return this.mods.includes(mod);
+  }
+
   private rollCraving(): Spec {
     const m = this.milestone;
-    const min = Math.min(MIN_CRAVING_TIER + Math.floor(m / 2), MAX_TIER - 1);
-    const max = Math.min(MIN_CRAVING_TIER + 1 + Math.floor((2 * m) / 3), MAX_TIER);
+    // "Big Appetite" shifts the whole craving band up a tier — larger builds
+    // demanded from the start.
+    const bump = this.has("feast") ? 1 : 0;
+    const min = Math.min(MIN_CRAVING_TIER + bump + Math.floor(m / 2), MAX_TIER - 1);
+    const max = Math.min(
+      MIN_CRAVING_TIER + 1 + bump + Math.floor((2 * m) / 3),
+      MAX_TIER
+    );
     return {
       type: this.rng.pick(TYPES),
       tier: this.rng.between(min, Math.max(min, max)),
@@ -147,7 +162,11 @@ export class GameState {
    */
   private rollDrop(): Spec {
     const r = this.rng.next();
-    const tier = r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : MAX_DROP_TIER;
+    // "Heavy Rain" shifts the drop mix up — no tier-1 chaff, bigger pieces to
+    // place and shove around.
+    const tier = this.has("bigdrops")
+      ? r < 0.34 ? 2 : r < 0.67 ? 3 : MAX_DROP_TIER
+      : r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : MAX_DROP_TIER;
     return { type: this.rng.pick(TYPES), tier };
   }
 
@@ -189,9 +208,11 @@ export class GameState {
   /**
    * How many drops a tight build of this tier reasonably takes — the freshness
    * grace window. Scales with the ask: a tier-6 is a project, a tier-3 isn't.
+   * "Impatient" roughly halves it, so the bonus fades under real time pressure.
    */
-  private static freshGrace(tier: number): number {
-    return Math.ceil(2 ** (tier - 1) / 3) + 2;
+  private freshGrace(tier: number): number {
+    const base = Math.ceil(2 ** (tier - 1) / 3) + 2;
+    return this.has("rush") ? Math.ceil(base / 2) : base;
   }
 
   /**
@@ -200,9 +221,34 @@ export class GameState {
    * base pay never does, so a slow feed is fine, just not rewarded.
    */
   get freshness(): number {
-    const grace = GameState.freshGrace(this.craving.tier);
+    const grace = this.freshGrace(this.craving.tier);
     const over = Math.max(0, this.cravingAge - grace);
     return clamp(1 - over / (grace * 2), 0, 1);
+  }
+
+  /**
+   * A little score for the act of dropping, so points tick up as you play and
+   * not only when the monster is fed. Kept small on purpose: feeding a big
+   * craving is worth hundreds, a drop is worth single digits, so the incentive
+   * still points firmly at feeding.
+   */
+  dropScore(tier: number): number {
+    return 2 + tier;
+  }
+
+  /** Award the drop bonus for one food entering the bin from the queue. */
+  addDropScore(tier: number): void {
+    this.score += this.dropScore(tier);
+  }
+
+  /** Reverse a drop bonus when that drop is undone. */
+  removeDropScore(tier: number): void {
+    this.score = Math.max(0, this.score - this.dropScore(tier));
+  }
+
+  /** How many foods a single queue-drop produces (two under Double Drop). */
+  get dropCount(): number {
+    return this.has("double") ? 2 : 1;
   }
 
   /** What pocketing this food costs — bigger food, bigger price. */

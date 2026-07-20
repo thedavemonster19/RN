@@ -8,6 +8,7 @@ import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameState";
 import { Save } from "../systems/Save";
 import { Ev, ReplayEvent } from "../systems/Replay";
+import { MODS } from "../systems/Modifiers";
 import { makeButton } from "../objects/Button";
 import { milestoneName, currentSize } from "../data/milestones";
 
@@ -59,9 +60,12 @@ export class GameScene extends Phaser.Scene {
   private dangerGfx!: Phaser.GameObjects.Graphics;
   /** Every economic action this run, for server-side verification. */
   private replayLog: ReplayEvent[] = [];
-  /** The last food dropped, while it's still undoable. */
-  private lastDrop: { food: Food; spec: Spec; fromPocket: boolean } | null = null;
+  /** The last drop, while it's still undoable. `foods` holds both pieces under
+   *  Double Drop. */
+  private lastDrop: { foods: Food[]; spec: Spec; fromPocket: boolean } | null = null;
   private undoLabel!: Phaser.GameObjects.Text;
+  /** Swinging-Claw modifier: the rail position oscillates and the claw follows. */
+  private swingPhase = 0;
   /** Timestamp the pile first crossed the line; null when it's below. */
   private overflowSince: number | null = null;
   private static OVERFLOW_GRACE = 3000;
@@ -96,14 +100,19 @@ export class GameScene extends Phaser.Scene {
     this.inputReady = false;
     this.time.delayedCall(150, () => (this.inputReady = true));
 
+    this.state = new GameState(this.dailyKey);
+
+    // Physics-only modifiers land on the world before anything spawns.
     const gravity = this.matter.world.localWorld.gravity;
-    if (gravity) gravity.scale = GRAVITY_SCALE;
+    if (gravity) {
+      gravity.scale = this.state.has("floaty") ? GRAVITY_SCALE * 0.5 : GRAVITY_SCALE;
+      gravity.x = 0; // wind is applied per-frame in update()
+    }
 
     this.drawBackground();
     this.createBinWalls();
     this.binGfx = this.add.graphics().setDepth(-1);
 
-    this.state = new GameState(this.dailyKey);
     this.dangerGfx = this.add.graphics().setDepth(0);
     this.drawBin();
     this.pile = new FoodPile(this);
@@ -124,6 +133,7 @@ export class GameScene extends Phaser.Scene {
     this.createUndoButton();
     this.createHelpButton();
     this.createLeaveButton();
+    if (this.state.mods.length) this.createModifierBanner();
     this.hud.update();
   }
 
@@ -146,6 +156,10 @@ export class GameScene extends Phaser.Scene {
         const hit = this.pile.foodAt(p.x, p.y);
         if (hit) {
           this.press = { food: hit, x: p.x, y: p.y };
+        } else if (this.state.has("swing")) {
+          // Swinging Claw: you don't aim, you time it — a tap drops wherever
+          // the auto-swinging claw happens to be.
+          this.dropQueued();
         } else {
           this.aiming = true;
           this.claw.aim(p.x, this.currentDrop());
@@ -183,15 +197,31 @@ export class GameScene extends Phaser.Scene {
     const fromPocket = this.pocketLoad !== null;
     const spec = this.pocketLoad ?? this.state.takeDrop();
     this.pocketLoad = null;
-    const r = tierRadius(spec.tier);
-    // Never spawn inside a pile that has grown up to the rail — that overlap
-    // is what used to fire food upwards.
-    const y = this.pile.clearSpawnY(this.claw.x, r, BIN.railY + 6 + r);
-    const food = this.pile.spawn(this.claw.x, y, spec.type, spec.tier);
     this.state.noteTier(spec.tier);
+
+    // Double Drop spawns two of the queued food (never a pocketed one — that
+    // would duplicate a stashed piece for free). Offset so they don't spawn
+    // exactly on top of each other and explode apart.
+    const count = fromPocket ? 1 : this.state.dropCount;
+    const r = tierRadius(spec.tier);
+    const foods: Food[] = [];
+    for (let k = 0; k < count; k++) {
+      const dx = count === 1 ? 0 : (k === 0 ? -1 : 1) * (r + 2);
+      const x = Phaser.Math.Clamp(this.claw.x + dx, BIN.left + r, BIN.right - r);
+      // Never spawn inside a pile that has grown up to the rail — that overlap
+      // is what used to fire food upwards.
+      const y = this.pile.clearSpawnY(x, r, BIN.railY + 6 + r);
+      foods.push(this.pile.spawn(x, y, spec.type, spec.tier));
+      // Points for the act of dropping — small, so feeding still dominates.
+      // Pocket-returns aren't new food, so they don't score (and can't be
+      // farmed by stash/unstash).
+      if (!fromPocket) this.state.addDropScore(spec.tier);
+    }
+
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
-    this.lastDrop = { food, spec, fromPocket };
+    this.lastDrop = { foods, spec, fromPocket };
     this.claw.setDispenser(this.currentDrop());
+    this.refreshUndo();
   }
 
   /**
@@ -206,18 +236,25 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const last = this.lastDrop;
-    if (!last || !this.pile.items.includes(last.food) || last.food.merging) {
+    // Every food from that drop must still be in the bin, unmerged, for the
+    // undo to be unambiguous.
+    const allPresent =
+      last &&
+      last.foods.every((f) => this.pile.items.includes(f) && !f.merging);
+    if (!last || !allPresent) {
       this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#9aa3d0");
       return;
     }
     this.replayLog.push([Ev.Undo, 0]);
-    this.pile.remove(last.food);
+    last.foods.forEach((f) => this.pile.remove(f));
     if (last.fromPocket) {
       // It came out of the pocket, so it goes back there — not into the queue,
       // which would launder a stashed food into free drops.
       this.state.pocket = last.spec;
       this.state.undosLeft--;
     } else {
+      // Refund the drop bonus for every food that drop added.
+      last.foods.forEach(() => this.state.removeDropScore(last.spec.tier));
       this.state.returnDrop(last.spec);
     }
     this.lastDrop = null;
@@ -398,24 +435,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * The bin edge glows and breathes as the pile climbs toward the line, so the
-   * danger is felt in peripheral vision instead of only announced in text.
+   * The bin edge flashes red ONLY while the overflow countdown is live — the
+   * same moment the "clear the bin" text is up. It used to glow on proximity,
+   * pulsing every time the pile edged near the line (which a falling drop did
+   * constantly), and that was just irritating. Now it means one thing: you are
+   * actually overflowing, right now.
    */
   private drawDanger(time: number): void {
     const g = this.dangerGfx;
     g.clear();
-    const line = this.lineY();
-    const top = this.pile.settledTop();
-    // 0 at a comfortable distance, 1 right at the line.
-    const proximity = Phaser.Math.Clamp(1 - (top - line) / 150, 0, 1);
-    if (proximity <= 0.02) return;
+    if (this.hud.overflowCountdown === null) return;
 
-    const pulse = 0.55 + 0.45 * Math.sin(time / (150 - proximity * 90));
-    const alpha = proximity * proximity * pulse;
+    const line = this.lineY();
+    const pulse = 0.55 + 0.45 * Math.sin(time / 90);
     const h = BIN.floor - line + 20;
-    g.lineStyle(3, COLORS.danger, alpha * 0.85);
+    g.lineStyle(3, COLORS.danger, pulse * 0.9);
     g.strokeRoundedRect(BIN.left, line - 8, BIN.right - BIN.left, h, 18);
-    g.lineStyle(9, COLORS.danger, alpha * 0.22);
+    g.lineStyle(10, COLORS.danger, pulse * 0.25);
     g.strokeRoundedRect(BIN.left, line - 8, BIN.right - BIN.left, h, 18);
   }
 
@@ -427,13 +463,15 @@ export class GameScene extends Phaser.Scene {
    * the line, so a big ask is always brutal but never impossible.
    */
   private lineY(): number {
-    return Math.min(BIN.overflowLine + this.state.milestone * 6, BIN.floor - 262);
+    // "Cramped Bin" starts the line lower, so there's less room from the off.
+    const base = this.state.has("cramped") ? BIN.overflowLine + 70 : BIN.overflowLine;
+    return Math.min(base + this.state.milestone * 6, BIN.floor - 262);
   }
 
-  update(time: number): void {
+  update(time: number, delta: number): void {
     if (this.over) return;
     this.pile.update();
-    this.drawDanger(time);
+    this.applyModifiers(time, delta);
 
     // Overflow: the moment settled food crosses the line, start a grace
     // countdown. Clear the pile back under the line to cancel it.
@@ -447,8 +485,52 @@ export class GameScene extends Phaser.Scene {
       this.overflowSince = null;
       this.hud.overflowCountdown = null;
     }
+    this.drawDanger(time); // after the countdown is up to date this frame
     this.refreshPocket();
     this.hud.update();
+  }
+
+  /** Per-frame work for the feel modifiers. */
+  private applyModifiers(time: number, delta: number): void {
+    if (this.state.has("swing") && !this.aiming) {
+      // Sweep the claw across the rail; a tap drops at wherever it is.
+      this.swingPhase += delta * 0.0022;
+      const min = BIN.left + 22;
+      const max = BIN.right - 22;
+      const x = (min + max) / 2 + ((max - min) / 2) * Math.sin(this.swingPhase);
+      this.claw.aim(x, this.currentDrop());
+    }
+    if (this.state.has("windy")) {
+      // A slow, reversing breeze — enough to drift food, not to fling it.
+      const gravity = this.matter.world.localWorld.gravity;
+      if (gravity) gravity.x = 0.4 * Math.sin(time / 2200);
+    }
+  }
+
+  /**
+   * A small stack of pills top-left naming today's active modifiers, tappable
+   * to show what each does — so a daily always announces its twist.
+   */
+  private createModifierBanner(): void {
+    const defs = this.state.mods.map((id) => MODS[id]);
+    defs.forEach((def, i) => {
+      const y = 58 + i * 24;
+      const label = this.add
+        .text(56, y, def.name, {
+          fontFamily: FONT,
+          fontSize: "11px",
+          fontStyle: "600",
+          color: "#ffe08a",
+          backgroundColor: "rgba(255,255,255,0.08)",
+          padding: { x: 8, y: 3 },
+        })
+        .setDepth(30)
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
+      label.on("pointerdown", () =>
+        this.floatText(GAME.WIDTH / 2, 200, def.desc, "#eaf0ff")
+      );
+    });
   }
 
   /** Show the pocketed food, or how close the next stash charge is. */

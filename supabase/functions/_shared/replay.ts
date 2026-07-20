@@ -29,7 +29,10 @@ import { MAX_TIER } from "./foods.ts";
  * timestep, so it would be a much bigger and more fragile undertaking.
  */
 
-export const REPLAY_VERSION = "v1";
+// v2: added per-drop scoring and daily modifiers. Bumping ensures a stale
+// cached client (still on v1 scoring) is rejected with a clear message rather
+// than mismatching, and keeps v1 and v2 scores from mixing on a leaderboard.
+export const REPLAY_VERSION = "v2";
 
 /** A plain object rather than a `const enum`: those get inlined at compile
  *  time and don't survive the copy into the Deno edge function. */
@@ -90,8 +93,9 @@ export function verifyRun(
   };
   const give = (tier: number, n: number) => bin.set(tier, (bin.get(tier) ?? 0) + n);
 
-  // Undo needs to put the exact food back, so remember the last drop.
-  let lastDrop: { tier: number; fromPocket: boolean } | null = null;
+  // Undo needs to put the exact food back, so remember the last drop and how
+  // many foods it produced (two under Double Drop).
+  let lastDrop: { tier: number; fromPocket: boolean; count: number } | null = null;
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
@@ -100,18 +104,21 @@ export function verifyRun(
 
     switch (kind) {
       case Ev.Drop: {
-        // A pocketed food re-entering the bin doesn't consume the queue.
+        // A pocketed food re-entering the bin doesn't consume the queue and
+        // isn't doubled — that would duplicate a stashed food for free.
         if (arg === 1) {
           const p = state.takePocket();
           if (!p) return fail(`event ${i}: unstash with empty pocket`, state);
           give(p.tier, 1);
           state.noteTier(p.tier);
-          lastDrop = { tier: p.tier, fromPocket: true };
+          lastDrop = { tier: p.tier, fromPocket: true, count: 1 };
         } else {
           const spec = state.takeDrop();
-          give(spec.tier, 1);
+          const count = state.dropCount; // two under Double Drop
+          give(spec.tier, count);
           state.noteTier(spec.tier);
-          lastDrop = { tier: spec.tier, fromPocket: false };
+          for (let k = 0; k < count; k++) state.addDropScore(spec.tier);
+          lastDrop = { tier: spec.tier, fromPocket: false, count };
         }
         break;
       }
@@ -148,11 +155,15 @@ export function verifyRun(
       case Ev.Undo: {
         if (state.undosLeft <= 0) return fail(`event ${i}: out of undos`, state);
         if (!lastDrop) return fail(`event ${i}: nothing to undo`, state);
-        if (!take(lastDrop.tier, 1)) return fail(`event ${i}: undo target missing`, state);
+        if (!take(lastDrop.tier, lastDrop.count))
+          return fail(`event ${i}: undo target missing`, state);
         if (lastDrop.fromPocket) {
           state.pocket = { type: state.craving.type, tier: lastDrop.tier };
           state.undosLeft--;
         } else {
+          // Refund the drop bonus for every food this drop added.
+          for (let k = 0; k < lastDrop.count; k++)
+            state.removeDropScore(lastDrop.tier);
           state.returnDrop({ type: state.craving.type, tier: lastDrop.tier });
         }
         lastDrop = null;

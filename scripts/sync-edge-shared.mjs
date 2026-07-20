@@ -16,6 +16,7 @@ const FILES = [
   ["src/systems/Rng.ts", "Rng.ts"],
   ["src/data/foods.ts", "foods.ts"],
   ["src/data/milestones.ts", "milestones.ts"],
+  ["src/systems/Modifiers.ts", "Modifiers.ts"],
   ["src/systems/GameState.ts", "GameState.ts"],
   ["src/systems/Replay.ts", "replay.ts"],
 ];
@@ -26,6 +27,7 @@ const REWRITES = [
   [/from\s+"\.\.\/data\/milestones"/g, 'from "./milestones.ts"'],
   [/from\s+"\.\/Rng"/g, 'from "./Rng.ts"'],
   [/from\s+"\.\/GameState"/g, 'from "./GameState.ts"'],
+  [/from\s+"\.\/Modifiers"/g, 'from "./Modifiers.ts"'],
 ];
 
 mkdirSync(OUT, { recursive: true });
