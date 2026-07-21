@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { Monster } from "../objects/Monster";
 import { makeButton, Button } from "../objects/Button";
 import { openNameEntry } from "../objects/NameEntry";
@@ -8,7 +8,7 @@ import { todayKey } from "../systems/Rng";
 import { dailyModifiers, MODS } from "../systems/Modifiers";
 import { GameScene } from "./GameScene";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * The main menu — the hub the game hangs off. Deliberately a blank slate: the
@@ -25,8 +25,11 @@ export class MenuScene extends Phaser.Scene {
   private bestLabel!: Phaser.GameObjects.Text;
   private nameText!: Phaser.GameObjects.Text;
 
-  private static BUTTON_TOP = 412;
-  private static BUTTON_GAP = 61;
+  /** Five 54px-tall buttons plus the daily-twist footer have to clear
+   *  GAME.HEIGHT (720): stack ends at TOP + 4·GAP + 27 = 659, footer text
+   *  centres at 700 — clear of each other, with 6px between buttons. */
+  private static BUTTON_TOP = 392;
+  private static BUTTON_GAP = 60;
 
   constructor() {
     super("Menu");
@@ -50,6 +53,7 @@ export class MenuScene extends Phaser.Scene {
     this.bestText = this.add
       .text(WIDTH / 2, 40, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
         color: "#ffe08a",
@@ -58,6 +62,7 @@ export class MenuScene extends Phaser.Scene {
     this.bestLabel = this.add
       .text(WIDTH / 2, 24, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "10px",
         color: "#9aa3d0",
       })
@@ -66,6 +71,7 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 102, "Monster Muncher", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "500",
         color: "#eaf0ff",
@@ -139,8 +145,9 @@ export class MenuScene extends Phaser.Scene {
       .map((id) => MODS[id].name)
       .join("  ·  ");
     this.add
-      .text(GAME.WIDTH / 2, GAME.HEIGHT - 40, `Daily twist:  ${mods}`, {
+      .text(GAME.WIDTH / 2, GAME.HEIGHT - 20, `Daily twist:  ${mods}`, {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "11px",
         color: "#9aa3d0",
       })
@@ -164,6 +171,7 @@ export class MenuScene extends Phaser.Scene {
     this.nameText = this.add
       .text(WIDTH / 2, y, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -172,6 +180,7 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, y + 22, "tap to rename", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "10px",
         color: "#6f78a8",
       })

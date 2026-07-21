@@ -1,7 +1,7 @@
 import Phaser from "phaser";
-import { COLORS } from "../config";
+import { COLORS, UI_FONT, TEXT_RES } from "../config";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 export interface ButtonOpts {
   x: number;
@@ -32,17 +32,25 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
   const top = o.y - HEIGHT / 2;
 
   const g = scene.add.graphics().setDepth(depth);
+  const RADIUS = 16;
   const draw = (hover: boolean) => {
     g.clear();
+    // A soft drop shadow lifts the button off the background — the flat fills
+    // were what made everything read as washed out.
+    g.fillStyle(0x06081a, o.primary ? 0.35 : 0.25);
+    g.fillRoundedRect(left, top + 3, w, HEIGHT, RADIUS);
+
     if (o.primary) {
-      g.fillStyle(COLORS.teal, hover ? 0.9 : 1);
+      g.fillStyle(COLORS.teal, 1);
+      g.fillRoundedRect(left, top, w, HEIGHT, RADIUS);
+      // A lighter band across the top half reads as a gentle sheen.
+      g.fillStyle(0xffffff, hover ? 0.28 : 0.16);
+      g.fillRoundedRect(left + 3, top + 2, w - 6, HEIGHT * 0.45, RADIUS - 4);
     } else {
-      g.fillStyle(0xffffff, hover ? 0.16 : 0.08);
-    }
-    g.fillRoundedRect(left, top, w, HEIGHT, 14);
-    if (!o.primary) {
-      g.lineStyle(1.5, 0xffffff, 0.22);
-      g.strokeRoundedRect(left, top, w, HEIGHT, 14);
+      g.fillStyle(0xffffff, hover ? 0.15 : 0.07);
+      g.fillRoundedRect(left, top, w, HEIGHT, RADIUS);
+      g.lineStyle(2, 0xffffff, hover ? 0.34 : 0.2);
+      g.strokeRoundedRect(left, top, w, HEIGHT, RADIUS);
     }
   };
   draw(false);
@@ -50,6 +58,7 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
   const txt = scene.add
     .text(o.x, o.y, o.label, {
       fontFamily: FONT,
+        resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
       color: o.primary ? "#0d1226" : "#eaf0ff",
@@ -65,6 +74,14 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
   zone.on("pointerout", () => draw(false));
   zone.on("pointerdown", () => {
     draw(true);
+    // A quick squash so a tap feels like it landed on something physical.
+    scene.tweens.add({
+      targets: txt,
+      scale: 0.94,
+      duration: 70,
+      yoyo: true,
+      ease: "Quad.easeOut",
+    });
     o.onClick();
   });
 

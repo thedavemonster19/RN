@@ -1,10 +1,10 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { GameState, Spec } from "../systems/GameState";
 import { milestoneName } from "../data/milestones";
 import { MAX_TIER, foodColor, tierTexture } from "../data/foods";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * A HUD disc standing in for a food. Real discs range from 22px to 124px
@@ -55,6 +55,7 @@ export class Hud {
     this.scoreText = scene.add
       .text(GAME.WIDTH / 2, 16, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -64,6 +65,7 @@ export class Hud {
     this.sizeText = scene.add
       .text(GAME.WIDTH / 2, 56, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "11px",
         color: "#9aa3d0",
       })
@@ -73,6 +75,7 @@ export class Hud {
     this.warnText = scene.add
       .text(GAME.WIDTH / 2, 216, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "500",
         color: "#ff6b7d",
@@ -91,13 +94,15 @@ export class Hud {
     panel.fillStyle(0xffffff, 0.06);
     panel.fillRoundedRect(px - 26, 100, 52, 134, 12);
     scene.add
-      .text(px, 108, "WANTS", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(px, 108, "WANTS", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.wantDisc = scene.add.image(px, 140, "food1").setDepth(depth);
     this.wantLabel = scene.add
       .text(px, 140, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "13px",
         fontStyle: "700",
         color: "#1b1f3d",
@@ -105,7 +110,8 @@ export class Hud {
       .setOrigin(0.5)
       .setDepth(depth + 1);
     scene.add
-      .text(px, 180, "THEN", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(px, 180, "THEN", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.cravingDiscs = [206].map((qy) =>
@@ -118,7 +124,8 @@ export class Hud {
     dpanel.fillStyle(0xffffff, 0.06);
     dpanel.fillRoundedRect(dx - 26, 200, 52, 150, 12);
     scene.add
-      .text(dx, 208, "DROPS", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(dx, 208, "DROPS", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.dropDiscs = [236, 268, 298, 326].map((qy, i) =>
@@ -146,6 +153,7 @@ export class Hud {
     this.fedText = scene.add
       .text(GAME.WIDTH / 2, GAME.HEIGHT - 46, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "11px",
         color: "#9aa3d0",
       })

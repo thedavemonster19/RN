@@ -1,12 +1,12 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { makeButton, Button } from "../objects/Button";
 import { Cloud, LeaderboardRow } from "../systems/Cloud";
 import { todayKey } from "../systems/Rng";
 import { dailyModifiers, MODS } from "../systems/Modifiers";
 import { Save } from "../systems/Save";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 type Tab = "daily" | "all";
 
@@ -48,6 +48,7 @@ export class LeaderboardScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 62, "Leaderboard", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -56,6 +57,7 @@ export class LeaderboardScene extends Phaser.Scene {
     this.subtitle = this.add
       .text(WIDTH / 2, 90, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "11px",
         color: "#9aa3d0",
         align: "center",
@@ -66,6 +68,7 @@ export class LeaderboardScene extends Phaser.Scene {
     this.status = this.add
       .text(WIDTH / 2, 260, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "13px",
         color: "#9aa3d0",
         align: "center",
@@ -173,6 +176,7 @@ export class LeaderboardScene extends Phaser.Scene {
       const rank = this.add
         .text(46, y, `${i + 1}`, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
           color: i < 3 ? "#ffe08a" : "#9aa3d0",
@@ -181,6 +185,7 @@ export class LeaderboardScene extends Phaser.Scene {
       const name = this.add
         .text(78, y, row.username, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "14px",
           color: mine ? "#37e0d0" : "#eaf0ff",
         })
@@ -188,6 +193,7 @@ export class LeaderboardScene extends Phaser.Scene {
       const score = this.add
         .text(WIDTH - 46, y, row.score.toLocaleString("en-US"), {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "14px",
           fontStyle: "600",
           color: "#eaf0ff",
@@ -201,7 +207,8 @@ export class LeaderboardScene extends Phaser.Scene {
         WIDTH / 2,
         top + Math.min(rows.length, 12) * 34 + 18,
         "Every score replayed and verified on the server.",
-        { fontFamily: FONT, fontSize: "10px", color: "#6f78a8" }
+        { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "10px", color: "#6f78a8" }
       )
       .setOrigin(0.5);
   }

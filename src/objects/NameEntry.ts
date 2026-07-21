@@ -1,9 +1,9 @@
 import Phaser from "phaser";
-import { GAME } from "../config";
+import { GAME, UI_FONT, TEXT_RES } from "../config";
 import { makeButton, Button } from "./Button";
 import { Save, NAME_MAX, cleanName, suggestName } from "../systems/Save";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * The name-your-monster dialog. Lives here rather than in a scene because two
@@ -34,6 +34,7 @@ export function openNameEntry(
   const title = scene.add
     .text(WIDTH / 2, cy - 66, "Name your monster", {
       fontFamily: FONT,
+        resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
       color: "#eaf0ff",
@@ -43,6 +44,7 @@ export function openNameEntry(
   const hint = scene.add
     .text(WIDTH / 2, cy - 42, `up to ${NAME_MAX} characters`, {
       fontFamily: FONT,
+        resolution: TEXT_RES,
       fontSize: "12px",
       color: "#9aa3d0",
     })

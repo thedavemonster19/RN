@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { milestoneName } from "../data/milestones";
 import { GameOverReason } from "../systems/GameState";
 import { Save } from "../systems/Save";
@@ -8,7 +8,7 @@ import { tierTexture } from "../data/foods";
 import { Cloud } from "../systems/Cloud";
 import { ReplayEvent } from "../systems/Replay";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 interface GameOverData {
   score: number;
@@ -53,6 +53,7 @@ export class GameOverScene extends Phaser.Scene {
     const syncNote = this.add
       .text(WIDTH / 2, 92, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "12px",
         color: "#9aa3d0",
         align: "center",
@@ -96,6 +97,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, top, data.dailyKey ? "Daily challenge over" : "Game over", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "500",
         color: "#ffffff",
@@ -104,6 +106,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, top + 30, "The bin overflowed.", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "13px",
         color: "#aeb6e6",
       })
@@ -112,6 +115,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, top + 74, data.score.toLocaleString("en-US"), {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "44px",
         fontStyle: "600",
         color: "#ffe08a",
@@ -124,6 +128,7 @@ export class GameOverScene extends Phaser.Scene {
         isBest ? "New best!" : `Best  ${Save.best.toLocaleString("en-US")}`,
         {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: isBest ? "600" : "400",
           color: isBest ? "#37e0d0" : "#9aa3d0",
@@ -147,6 +152,7 @@ export class GameOverScene extends Phaser.Scene {
       this.add
         .text(cx, rowY - 12, c.value, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "19px",
           fontStyle: "600",
           color: "#eaf0ff",
@@ -155,6 +161,7 @@ export class GameOverScene extends Phaser.Scene {
       this.add
         .text(cx, rowY + 10, c.label, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "10px",
           color: "#9aa3d0",
         })
@@ -166,6 +173,7 @@ export class GameOverScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2 - 34, rowY + 40, "BIGGEST", {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "10px",
           color: "#9aa3d0",
         })
@@ -176,6 +184,7 @@ export class GameOverScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2 + 46, rowY + 40, `#${data.biggestTier}`, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
           color: "#eaf0ff",
@@ -186,6 +195,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, rowY + 78, `${name} reached ${milestoneName(data.milestone)} size`, {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "13px",
         color: "#aeb6e6",
       })

@@ -1,10 +1,10 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { makeButton, Button } from "../objects/Button";
 import { Cloud } from "../systems/Cloud";
 import { Save, NAME_MAX, cleanName } from "../systems/Save";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * Sign in / sign up. Deliberately skippable — the game is fully playable
@@ -40,6 +40,7 @@ export class AccountScene extends Phaser.Scene {
     this.message = this.add
       .text(WIDTH / 2, HEIGHT - 168, "", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "12px",
         color: "#ff9d5c",
         align: "center",
@@ -51,6 +52,7 @@ export class AccountScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2, 100, "Accounts", {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "28px",
           fontStyle: "600",
           color: "#eaf0ff",
@@ -63,6 +65,7 @@ export class AccountScene extends Phaser.Scene {
           "Not connected yet.\n\nAdd your Supabase URL and anon key\nto a .env file and rebuild.",
           {
             fontFamily: FONT,
+        resolution: TEXT_RES,
             fontSize: "14px",
             color: "#9aa3d0",
             align: "center",
@@ -94,6 +97,7 @@ export class AccountScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 100, signedIn ? "Account" : this.mode === "in" ? "Sign in" : "Create account", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -105,6 +109,7 @@ export class AccountScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2, 170, "You're signed in.\nProgress syncs to this account.", {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "14px",
           color: "#9aa3d0",
           align: "center",

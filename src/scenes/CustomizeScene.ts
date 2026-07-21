@@ -1,10 +1,10 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { Monster } from "../objects/Monster";
 import { makeButton } from "../objects/Button";
 import { Save } from "../systems/Save";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * Customisation — a live preview of your monster and, for now, a placeholder
@@ -46,6 +46,7 @@ export class CustomizeScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 74, "Customize", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -68,6 +69,7 @@ export class CustomizeScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, panelY + 26, "COMING SOON", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "10px",
         color: "#9aa3d0",
       })
@@ -78,6 +80,7 @@ export class CustomizeScene extends Phaser.Scene {
       this.add
         .text(62, y, label, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "14px",
           color: "#aeb6e6",
         })
@@ -85,6 +88,7 @@ export class CustomizeScene extends Phaser.Scene {
       this.add
         .text(WIDTH - 62, y, "—", {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "14px",
           color: "#6f78a8",
         })
@@ -98,6 +102,7 @@ export class CustomizeScene extends Phaser.Scene {
         "Your aura already changes colour\nevery time your monster grows.",
         {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "11px",
           color: "#6f78a8",
           align: "center",

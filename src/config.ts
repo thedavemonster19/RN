@@ -8,6 +8,25 @@ export const GAME = {
   HEIGHT: 720,
 } as const;
 
+/**
+ * The UI typeface. `ui-rounded` is a CSS generic that resolves to SF Pro
+ * Rounded on Apple devices — soft and friendly, matching the monster, and it
+ * costs nothing because it ships with the OS (no webfont to download, which
+ * matters for a single-file build). Everything after it is a graceful fallback.
+ */
+export const UI_FONT =
+  'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Varela Round", system-ui, -apple-system, sans-serif';
+
+/**
+ * Text is rendered at this multiple of its on-screen size, then scaled down.
+ *
+ * The game canvas is a fixed 400x720 that the browser then stretches to fill
+ * the screen — on a phone with a 2-3x pixel ratio that's a big upscale, and
+ * text rasterised at 1x came out soft and blurry. Rendering glyphs at 3x and
+ * letting them scale down keeps them sharp on any display.
+ */
+export const TEXT_RES = 3;
+
 /** Clean-modern palette (matches the approved look-and-feel mockup). */
 export const COLORS = {
   bgTop: 0x2a3366,

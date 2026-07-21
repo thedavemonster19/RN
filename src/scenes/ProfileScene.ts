@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { milestoneName } from "../data/milestones";
 import { Save } from "../systems/Save";
 import { makeButton } from "../objects/Button";
@@ -8,7 +8,7 @@ import { tierTexture } from "../data/foods";
 import { todayKey } from "../systems/Rng";
 import { Cloud } from "../systems/Cloud";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /**
  * Your monster's record. Local-only for now: everything here comes from
@@ -37,6 +37,7 @@ export class ProfileScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 74, Save.name || "Your monster", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -45,6 +46,7 @@ export class ProfileScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, 106, `${Save.runs} run${Save.runs === 1 ? "" : "s"} played`, {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "12px",
         color: "#9aa3d0",
       })
@@ -59,6 +61,7 @@ export class ProfileScene extends Phaser.Scene {
     this.add
       .text(WIDTH / 2, panelY + 22, "BEST RUN", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "10px",
         color: "#9aa3d0",
       })
@@ -68,6 +71,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2, panelY + 58, "No runs yet — go feed something.", {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "13px",
           color: "#aeb6e6",
         })
@@ -76,6 +80,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add
         .text(WIDTH / 2, panelY + 56, best.score.toLocaleString("en-US"), {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "40px",
           fontStyle: "600",
           color: "#ffe08a",
@@ -90,11 +95,13 @@ export class ProfileScene extends Phaser.Scene {
       rows.forEach(([label, value], i) => {
         const y = panelY + 96 + i * 24;
         this.add
-          .text(58, y, label, { fontFamily: FONT, fontSize: "13px", color: "#9aa3d0" })
+          .text(58, y, label, { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "13px", color: "#9aa3d0" })
           .setOrigin(0, 0.5);
         this.add
           .text(WIDTH - 58, y, value, {
             fontFamily: FONT,
+        resolution: TEXT_RES,
             fontSize: "13px",
             fontStyle: "600",
             color: "#eaf0ff",
@@ -104,7 +111,8 @@ export class ProfileScene extends Phaser.Scene {
 
       const y = panelY + 168;
       this.add
-        .text(58, y, "Biggest food", { fontFamily: FONT, fontSize: "13px", color: "#9aa3d0" })
+        .text(58, y, "Biggest food", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "13px", color: "#9aa3d0" })
         .setOrigin(0, 0.5);
       const disc = this.add.image(WIDTH - 76, y, tierTexture(best.biggestTier || 1));
       disc.setDisplaySize(20, 20);
@@ -112,6 +120,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add
         .text(WIDTH - 58, y, `#${best.biggestTier}`, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
           color: "#eaf0ff",
@@ -132,6 +141,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add
         .text(cx, statsY, value, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "22px",
           fontStyle: "600",
           color: "#ffe08a",
@@ -140,6 +150,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add
         .text(cx, statsY + 24, label, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "10px",
           color: "#9aa3d0",
         })
@@ -157,6 +168,7 @@ export class ProfileScene extends Phaser.Scene {
             : "Progress is saved on this device only.",
         {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "11px",
           color: "#6f78a8",
           align: "center",

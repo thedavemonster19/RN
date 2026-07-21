@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, BIN, COLORS, MONSTER, GRAVITY_SCALE } from "../config";
+import { GAME, BIN, COLORS, MONSTER, GRAVITY_SCALE, UI_FONT, TEXT_RES } from "../config";
 import { FoodPile, Food } from "../objects/FoodPile";
 import { FoodType, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
@@ -12,7 +12,7 @@ import { MODS } from "../systems/Modifiers";
 import { makeButton } from "../objects/Button";
 import { milestoneName, currentSize } from "../data/milestones";
 
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = UI_FONT;
 
 /** A press that moves less than this is a tap (= feed it). */
 const TAP_SLOP = 12;
@@ -377,6 +377,7 @@ export class GameScene extends Phaser.Scene {
     const label = this.add
       .text(GAME.WIDTH / 2, BIN.floor - 120, `BIN CLEARED\n+${bonus}`, {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "700",
         color: "#37e0d0",
@@ -450,11 +451,13 @@ export class GameScene extends Phaser.Scene {
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
     this.add
-      .text(bx, by - 4, "↩", { fontFamily: FONT, fontSize: "19px", color: "#eaf0ff" })
+      .text(bx, by - 4, "↩", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "19px", color: "#eaf0ff" })
       .setOrigin(0.5)
       .setDepth(31);
     this.undoLabel = this.add
-      .text(bx, by + 22, "", { fontFamily: FONT, fontSize: "10px", color: "#9aa3d0" })
+      .text(bx, by + 22, "", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(31);
     btn.on("pointerdown", () => this.undoDrop());
@@ -549,6 +552,7 @@ export class GameScene extends Phaser.Scene {
       const label = this.add
         .text(56, y, def.name, {
           fontFamily: FONT,
+        resolution: TEXT_RES,
           fontSize: "11px",
           fontStyle: "600",
           color: "#ffe08a",
@@ -593,13 +597,15 @@ export class GameScene extends Phaser.Scene {
     this.add
       .text(px, py - 18, "POCKET", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "10px",
         color: "#9aa3d0",
       })
       .setOrigin(0.5)
       .setDepth(20);
     this.pocketStatus = this.add
-      .text(px, py + 38, "", { fontFamily: FONT, fontSize: "9px", color: "#9aa3d0" })
+      .text(px, py + 38, "", { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "9px", color: "#9aa3d0" })
       .setOrigin(0.5)
       .setDepth(20);
     this.pocketDisc = this.add
@@ -640,6 +646,7 @@ export class GameScene extends Phaser.Scene {
     this.add
       .text(bx, by - 1, "‹", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "22px",
         fontStyle: "600",
         color: "#9aa3d0",
@@ -675,6 +682,7 @@ export class GameScene extends Phaser.Scene {
     const title = this.add
       .text(WIDTH / 2, cy - 62, "Leave the game?", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "20px",
         fontStyle: "600",
         color: "#eaf0ff",
@@ -684,6 +692,7 @@ export class GameScene extends Phaser.Scene {
     const body = this.add
       .text(WIDTH / 2, cy - 30, "Your run is kept until you quit.", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "12px",
         color: "#9aa3d0",
       })
@@ -747,6 +756,7 @@ export class GameScene extends Phaser.Scene {
     this.add
       .text(bx, by, "?", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "18px",
         fontStyle: "500",
         color: "#9aa3d0",
@@ -788,6 +798,7 @@ export class GameScene extends Phaser.Scene {
     const txt = this.add
       .text(WIDTH / 2, HEIGHT / 2 - 30, lines.join("\n"), {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "15px",
         color: "#eaf0ff",
         align: "center",
@@ -798,6 +809,7 @@ export class GameScene extends Phaser.Scene {
     const tap = this.add
       .text(WIDTH / 2, HEIGHT / 2 + 190, "tap to close", {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "14px",
         color: "#37e0d0",
       })
@@ -817,7 +829,8 @@ export class GameScene extends Phaser.Scene {
         GAME.WIDTH / 2,
         260,
         `As big as a ${milestoneName(this.state.milestone - 1)}!`,
-        { fontFamily: FONT, fontSize: "22px", fontStyle: "500", color: "#ffe08a" }
+        { fontFamily: FONT,
+        resolution: TEXT_RES, fontSize: "22px", fontStyle: "500", color: "#ffe08a" }
       )
       .setOrigin(0.5)
       .setDepth(30);
@@ -836,6 +849,7 @@ export class GameScene extends Phaser.Scene {
     const t = this.add
       .text(x, y, msg, {
         fontFamily: FONT,
+        resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "600",
         color,

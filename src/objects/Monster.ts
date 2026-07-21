@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { COLORS } from "../config";
+import { COLORS, UI_FONT, TEXT_RES } from "../config";
 
 /** Scale at the starting (newborn) size, and how big it's allowed to get.
  *  Kept modest so the wider bin and the food-chain bar have room to breathe. */
@@ -66,7 +66,8 @@ export class Monster {
 
     this.sizeLabel = scene.add
       .text(x, y, "0.3 m", {
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        fontFamily: UI_FONT,
+        resolution: TEXT_RES,
         fontSize: "17px",
         fontStyle: "500",
         color: "#eaf0ff",
