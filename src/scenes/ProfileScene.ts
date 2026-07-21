@@ -114,7 +114,7 @@ export class ProfileScene extends Phaser.Scene {
         .text(58, y, "Biggest food", { fontFamily: FONT,
         resolution: TEXT_RES, fontSize: "13px", color: "#9aa3d0" })
         .setOrigin(0, 0.5);
-      const disc = this.add.image(WIDTH - 76, y, tierTexture(best.biggestTier || 1));
+      const disc = this.add.image(WIDTH - 96, y, tierTexture(best.biggestTier || 1));
       disc.setDisplaySize(20, 20);
       disc.setTint(COLORS.gold);
       this.add
