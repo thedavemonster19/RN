@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { foodColor, tierRadius, tierTexture } from "../data/foods";
+import { tierRadius, tierTexture } from "../data/foods";
 import { Spec } from "../systems/GameState";
 
 /**
@@ -50,7 +50,6 @@ export class Claw {
       this.dispenser.setTexture(tierTexture(spec.tier));
     }
     this.dispenser
-      .setTint(foodColor(spec.type, spec.tier))
       .setPosition(this.x, this.railY + 6 + tierRadius(spec.tier))
       .setVisible(true);
     this.draw();

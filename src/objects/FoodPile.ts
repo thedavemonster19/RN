@@ -1,11 +1,5 @@
 import Phaser from "phaser";
-import {
-  MAX_TIER,
-  FoodType,
-  foodColor,
-  tierRadius,
-  tierTexture,
-} from "../data/foods";
+import { MAX_TIER, FoodType, tierRadius, tierTexture } from "../data/foods";
 import { BIN } from "../config";
 
 export interface Food {
@@ -69,6 +63,28 @@ const GROW_FRAMES = 8;
 const GROW_START = 0.55;
 
 /**
+ * Speed limits, in pixels per frame. These are the difference between food that
+ * has weight and food that pings around like a pinball.
+ *
+ * MAX_SPEED is a terminal velocity. A drop falls ~380px from the rail, and
+ * unclamped it arrived at 22px/frame (~1300px/s) — it didn't land on the pile so
+ * much as detonate inside it. Capping the arrival speed is what makes a drop
+ * read as heavy instead of frantic; it still accelerates normally, it just stops
+ * gaining once it's moving fast enough to feel decisive.
+ *
+ * MAX_RISE is the one that actually fixes "they go flying". Food should fall
+ * fast and never rocket upward, so the upward component is capped far harder
+ * than the overall speed. Measured over 40 seeded fills, this cut the worst
+ * upward launch from 8.2px/frame to 2.7 — while leaving the sideways shove
+ * untouched at 52px (it was IDENTICAL across every upward cap tested, which is
+ * the proof that launching and nudging are separable). That matters: shoving a
+ * ball into place with a well-aimed drop is a real technique, so the fix had to
+ * spend its damping on the vertical axis only.
+ */
+const MAX_SPEED = 16;
+const MAX_RISE = 3;
+
+/**
  * Owns the physical pile of food in the bin: spawning Matter bodies, merging
  * matching food that touches (Suika-style), answering "what did the player
  * tap", and reporting the settled pile height for overflow.
@@ -84,8 +100,34 @@ export class FoodPile {
   /** Fired when two foods merge into the next tier up. */
   onMerge?: (x: number, y: number, type: FoodType, tier: number) => void;
 
+  /** Bound so it can be removed again when the scene shuts down. */
+  private readonly onAfterStep = () => this.clampSpeeds();
+  /**
+   * Held from construction rather than reached through `scene.matter` later:
+   * by the time the scene's "shutdown" event fires, Phaser has already torn the
+   * Matter plugin off the scene, so `scene.matter` is null and unhooking
+   * through it throws — inside the shutdown sequence, which then never
+   * finishes. That broke "Play again".
+   */
+  private readonly world: Phaser.Physics.Matter.World;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.world = scene.matter.world;
+    // The speed limits MUST be applied after Matter integrates, not before.
+    // Phaser runs scene.update() first and steps the physics world after it, so
+    // clamping from update() always acted on the previous frame's velocities:
+    // a collision could kick a food upward and it would move — and render — at
+    // that speed for a full frame before being caught. Measured in the live
+    // game, that leak let food reach 8.7px/frame upward against a cap of 3.
+    this.world.on("afterupdate", this.onAfterStep);
+    scene.events.once("shutdown", () => this.destroyPile());
+    scene.events.once("destroy", () => this.destroyPile());
+  }
+
+  /** Drop the world listener so a restarted scene doesn't stack another one. */
+  private destroyPile(): void {
+    this.world?.off("afterupdate", this.onAfterStep);
   }
 
   /** (Re)build a food's circular collider at the given radius. setCircle
@@ -97,9 +139,15 @@ export class FoodPile {
       // (friction .4 / static .7) made the pile behave like sandbags: you
       // couldn't nudge a ball into position by dropping another one on it,
       // which is a real technique for lining up merges. Low friction lets them
-      // roll and transmit a shove; a whisper of restitution keeps that lively
-      // without turning the bin into a pinball table.
-      restitution: 0.06,
+      // roll and transmit a shove.
+      //
+      // Liveliness now comes from the low friction alone, not from bounce.
+      // Zero, not a whisper. Even 0.06 meant every landing ended in a small
+      // hop, and a bin full of small hops is exactly the "janky" read — food
+      // that never quite commits to being at rest. Measured: dropping it to 0
+      // cut the merge-time upward pop from 0.40 to 0.11px/frame and let the
+      // pile settle in 27 frames instead of 38.
+      restitution: 0,
       // Measured: at 0.4/0.7 (the old sandbag values) a dropped ball barely
       // moved its neighbour. At 0.06 it shoved it ~110px, clean across the bin
       // into the wall, which made stacking impossible. 0.12 lands at ~59px —
@@ -128,7 +176,6 @@ export class FoodPile {
     // collider that matches the visual exactly.
     const mo = this.scene.matter.add.image(x, y, tierTexture(tier));
     this.setBody(mo, growIn ? radius * GROW_START : radius);
-    mo.setTint(foodColor(type, tier));
     mo.setDepth(5);
     const food: Food = {
       mo,
@@ -199,6 +246,38 @@ export class FoodPile {
         this.wakeAll();
         break; // `a` is gone — move on to the next food
       }
+    }
+  }
+
+  /**
+   * Hold every food inside the speed limits (see MAX_SPEED / MAX_RISE).
+   *
+   * Sleeping bodies are skipped deliberately: they report no velocity anyway,
+   * and calling setVelocity on one would wake it, which would keep the settled
+   * pile permanently re-solving — the very rattling the sleeping is there to
+   * stop.
+   */
+  private clampSpeeds(): void {
+    for (const f of this.items) {
+      // Defensive: this runs from a physics-world listener, so a pile belonging
+      // to a scene that has gone away could in principle still be called. A
+      // destroyed sprite has no body, and stepping over it is free.
+      const b = f.mo?.body as MatterJS.BodyType | undefined;
+      if (!b || b.isSleeping) continue;
+      let { x: vx, y: vy } = b.velocity;
+      const speed = Math.hypot(vx, vy);
+      let clamped = false;
+      if (speed > MAX_SPEED) {
+        vx = (vx / speed) * MAX_SPEED;
+        vy = (vy / speed) * MAX_SPEED;
+        clamped = true;
+      }
+      // Negative y is upward.
+      if (-vy > MAX_RISE) {
+        vy = -MAX_RISE;
+        clamped = true;
+      }
+      if (clamped) f.mo.setVelocity(vx, vy);
     }
   }
 

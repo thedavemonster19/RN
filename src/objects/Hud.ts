@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { GameState, Spec } from "../systems/GameState";
 import { milestoneName } from "../data/milestones";
-import { MAX_TIER, foodColor, tierTexture } from "../data/foods";
+import { MAX_TIER, tierTexture } from "../data/foods";
 
 const FONT = UI_FONT;
 
@@ -17,7 +17,6 @@ function panelDiameter(tier: number): number {
 
 function paintDisc(img: Phaser.GameObjects.Image, spec: Spec): void {
   img.setTexture(tierTexture(spec.tier));
-  img.setTint(foodColor(spec.type, spec.tier));
   img.setDisplaySize(panelDiameter(spec.tier), panelDiameter(spec.tier));
 }
 
@@ -174,7 +173,7 @@ export class Hud {
     this.wantLabel.setText(`${s.craving.tier}`);
     this.chainDiscs.forEach((d, i) => {
       const tier = i + 1;
-      d.setTint(foodColor(s.craving.type, tier));
+      d.setTexture(tierTexture(tier));
       d.setAlpha(tier === s.craving.tier ? 1 : 0.7);
     });
     s.cravingQueue.forEach((c, i) => {

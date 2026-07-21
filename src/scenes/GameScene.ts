@@ -280,11 +280,10 @@ export class GameScene extends Phaser.Scene {
   /** Lift a food out of the pile into a sprite we can fly somewhere. */
   private pluck(food: Food): Phaser.GameObjects.Image {
     const { x, y } = food.mo;
-    const { type, tier } = food;
+    const { tier } = food;
     this.pile.remove(food);
     return this.add
       .image(x, y, tierTexture(tier))
-      .setTint(foodColor(type, tier))
       .setDepth(12);
   }
 
@@ -617,7 +616,6 @@ export class GameScene extends Phaser.Scene {
     this.pocketDisc.setVisible(p !== null);
     if (p !== null) {
       this.pocketDisc.setTexture(tierTexture(p.tier));
-      this.pocketDisc.setTint(foodColor(p.type, p.tier));
       this.pocketDisc.setDisplaySize(28, 28);
       this.pocketStatus.setText("tap to use").setColor("#2ff0d6");
       return;

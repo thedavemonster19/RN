@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
+import { GAME, UI_FONT, TEXT_RES } from "../config";
 import { milestoneName } from "../data/milestones";
 import { GameOverReason } from "../systems/GameState";
 import { Save } from "../systems/Save";
@@ -180,7 +180,6 @@ export class GameOverScene extends Phaser.Scene {
         .setOrigin(0.5);
       const disc = this.add.image(WIDTH / 2 + 22, rowY + 40, tierTexture(data.biggestTier));
       disc.setDisplaySize(22, 22);
-      disc.setTint(COLORS.gold);
       this.add
         .text(WIDTH / 2 + 46, rowY + 40, `#${data.biggestTier}`, {
           fontFamily: FONT,

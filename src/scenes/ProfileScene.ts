@@ -116,7 +116,6 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(0, 0.5);
       const disc = this.add.image(WIDTH - 96, y, tierTexture(best.biggestTier || 1));
       disc.setDisplaySize(20, 20);
-      disc.setTint(COLORS.gold);
       this.add
         .text(WIDTH - 58, y, `#${best.biggestTier}`, {
           fontFamily: FONT,
