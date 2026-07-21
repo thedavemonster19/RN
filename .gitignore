@@ -23,3 +23,7 @@ Archive/
 ios/App/Pods/
 ios/App/build/
 ios/App/App/public/
+
+# Master artwork source. The processed sprite sheet is baked into
+# src/data/foodSheet.ts, so the repo does not need the original too.
+art/
