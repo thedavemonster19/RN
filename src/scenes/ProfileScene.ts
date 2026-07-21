@@ -119,19 +119,32 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(1, 0.5);
     }
 
-    // Today's daily result, if they've played it.
+    // The two numbers that actually rank you, side by side.
     const key = todayKey();
     const todayScore = Save.dailyBest(key);
-    this.add
-      .text(
-        WIDTH / 2,
-        panelY + (best ? 226 : 132),
-        todayScore
-          ? `Today's daily: ${todayScore.toLocaleString("en-US")}`
-          : "Today's daily: not played",
-        { fontFamily: FONT, fontSize: "13px", color: "#aeb6e6" }
-      )
-      .setOrigin(0.5);
+    const statsY = panelY + (best ? 222 : 128);
+    const cols: [string, string][] = [
+      ["ALL-TIME BEST", Save.best ? Save.best.toLocaleString("en-US") : "—"],
+      ["TODAY'S DAILY", todayScore ? todayScore.toLocaleString("en-US") : "—"],
+    ];
+    cols.forEach(([label, value], i) => {
+      const cx = WIDTH / 2 + (i === 0 ? -78 : 78);
+      this.add
+        .text(cx, statsY, value, {
+          fontFamily: FONT,
+          fontSize: "22px",
+          fontStyle: "600",
+          color: "#ffe08a",
+        })
+        .setOrigin(0.5);
+      this.add
+        .text(cx, statsY + 24, label, {
+          fontFamily: FONT,
+          fontSize: "10px",
+          color: "#9aa3d0",
+        })
+        .setOrigin(0.5);
+    });
 
     this.add
       .text(

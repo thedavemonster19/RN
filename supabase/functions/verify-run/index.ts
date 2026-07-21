@@ -67,31 +67,69 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     if (!body) return json({ accepted: false, reason: "Bad request body" }, 400);
 
-    const { daily_key, score, events, version } = body;
+    const { daily_key, seed, score, events, version } = body;
     if (version !== REPLAY_VERSION) {
       return json({
         accepted: false,
         reason: `Client version ${version} no longer accepted (server is ${REPLAY_VERSION})`,
       });
     }
-    if (typeof daily_key !== "string" || !acceptableKeys().includes(daily_key)) {
-      return json({ accepted: false, reason: "Not an open daily challenge" });
-    }
     if (typeof score !== "number" || !Number.isFinite(score) || score < 0) {
       return json({ accepted: false, reason: "Bad score" });
     }
 
+    // A daily run is pinned to an open challenge date; a casual run carries its
+    // own seed. Either way the run is re-simulated, never trusted.
+    const isDaily = typeof daily_key === "string" && daily_key.length > 0;
+    if (isDaily && !acceptableKeys().includes(daily_key)) {
+      return json({ accepted: false, reason: "Not an open daily challenge" });
+    }
+    if (!isDaily && (typeof seed !== "number" || !Number.isFinite(seed))) {
+      return json({ accepted: false, reason: "Missing run seed" });
+    }
+
     // --- re-run the whole thing --------------------------------------------
-    const result = verifyRun(daily_key, events, score);
+    const result = verifyRun(
+      isDaily ? { dailyKey: daily_key } : { seed },
+      events,
+      score
+    );
     if (!result.ok) {
       return json({ accepted: false, verified: false, reason: result.reason });
     }
 
-    // --- record it, keeping only the player's best ------------------------
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // --- all-time board: every verified run counts, best one kept ----------
+    const { data: bestRow } = await admin
+      .from("best_scores")
+      .select("score")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!bestRow || bestRow.score < result.score) {
+      await admin.from("best_scores").upsert(
+        {
+          user_id: userId,
+          score: result.score,
+          milestone: result.biggestTier,
+          feeds: result.feeds,
+          drops: result.drops,
+          game_version: REPLAY_VERSION,
+          verified: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+    }
+
+    if (!isDaily) {
+      return json({ accepted: true, verified: true, score: result.score });
+    }
+
+    // --- daily board: one row per player per day, best kept ---------------
     const { data: existing } = await admin
       .from("daily_scores")
       .select("score")

@@ -62,7 +62,7 @@ export class GameScene extends Phaser.Scene {
   private replayLog: ReplayEvent[] = [];
   /** The last drop, while it's still undoable. `foods` holds both pieces under
    *  Double Drop. */
-  private lastDrop: { foods: Food[]; spec: Spec; fromPocket: boolean } | null = null;
+  private lastDrop: { foods: Food[]; specs: Spec[]; fromPocket: boolean } | null = null;
   private undoLabel!: Phaser.GameObjects.Text;
   /** Swinging-Claw modifier: the rail position oscillates and the claw follows. */
   private swingPhase = 0;
@@ -195,19 +195,19 @@ export class GameScene extends Phaser.Scene {
    */
   private dropQueued(): void {
     const fromPocket = this.pocketLoad !== null;
-    const spec = this.pocketLoad ?? this.state.takeDrop();
+    // Under Double Drop this is two DIFFERENT foods, drawn separately, so they
+    // can't fuse with each other on the way down. A pocketed food is never
+    // doubled — that would duplicate a stashed piece for free.
+    const specs = fromPocket ? [this.pocketLoad!] : this.state.takeDrops();
     this.pocketLoad = null;
-    this.state.noteTier(spec.tier);
 
-    // Double Drop spawns two of the queued food (never a pocketed one — that
-    // would duplicate a stashed piece for free). Offset so they don't spawn
-    // exactly on top of each other and explode apart.
-    const count = fromPocket ? 1 : this.state.dropCount;
-    const r = tierRadius(spec.tier);
     const foods: Food[] = [];
-    for (let k = 0; k < count; k++) {
-      const dx = count === 1 ? 0 : (k === 0 ? -1 : 1) * (r + 2);
-      const x = Phaser.Math.Clamp(this.claw.x + dx, BIN.left + r, BIN.right - r);
+    specs.forEach((spec, k) => {
+      this.state.noteTier(spec.tier);
+      const r = tierRadius(spec.tier);
+      // Two foods land well apart so each can be aimed at a different spot.
+      const spread = specs.length === 1 ? 0 : (k === 0 ? -1 : 1) * 46;
+      const x = Phaser.Math.Clamp(this.claw.x + spread, BIN.left + r, BIN.right - r);
       // Never spawn inside a pile that has grown up to the rail — that overlap
       // is what used to fire food upwards.
       const y = this.pile.clearSpawnY(x, r, BIN.railY + 6 + r);
@@ -216,10 +216,10 @@ export class GameScene extends Phaser.Scene {
       // Pocket-returns aren't new food, so they don't score (and can't be
       // farmed by stash/unstash).
       if (!fromPocket) this.state.addDropScore(spec.tier);
-    }
+    });
 
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
-    this.lastDrop = { foods, spec, fromPocket };
+    this.lastDrop = { foods, specs, fromPocket };
     this.claw.setDispenser(this.currentDrop());
     this.refreshUndo();
   }
@@ -250,12 +250,12 @@ export class GameScene extends Phaser.Scene {
     if (last.fromPocket) {
       // It came out of the pocket, so it goes back there — not into the queue,
       // which would launder a stashed food into free drops.
-      this.state.pocket = last.spec;
+      this.state.pocket = last.specs[0];
       this.state.undosLeft--;
     } else {
       // Refund the drop bonus for every food that drop added.
-      last.foods.forEach(() => this.state.removeDropScore(last.spec.tier));
-      this.state.returnDrop(last.spec);
+      last.specs.forEach((s) => this.state.removeDropScore(s.tier));
+      this.state.returnDrops(last.specs);
     }
     this.lastDrop = null;
     this.claw.setDispenser(this.currentDrop());
@@ -355,13 +355,44 @@ export class GameScene extends Phaser.Scene {
         // first replayed to a HIGHER score than the client actually scored —
         // and the server rejected the run for mismatching. Recording it here
         // keeps the log in the same order as the state changes.
-        this.feeding = false;
         const result = this.state.feed(type, tier);
         // Only log a feed the state actually accepted, so the log can never
         // describe something that didn't happen.
-        if (result) this.replayLog.push([Ev.Feed, tier]);
-        if (result) this.applyFeed(result, type);
+        if (result) {
+          this.replayLog.push([Ev.Feed, tier]);
+          this.applyFeed(result, type);
+          // Feeding the last food empties the bin. Checked right here, at the
+          // same moment the replay checks it, so the two agree.
+          if (this.pile.items.length === 0) {
+            this.celebrateClear(this.state.awardBinClear());
+          }
+        }
       },
+    });
+  }
+
+  /** A clean bin is a real achievement — say so loudly. */
+  private celebrateClear(bonus: number): void {
+    this.cameras.main.flash(220, 55, 224, 208, false);
+    const label = this.add
+      .text(GAME.WIDTH / 2, BIN.floor - 120, `BIN CLEARED\n+${bonus}`, {
+        fontFamily: FONT,
+        fontSize: "26px",
+        fontStyle: "700",
+        color: "#37e0d0",
+        align: "center",
+        lineSpacing: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(32);
+    this.tweens.add({
+      targets: label,
+      y: label.y - 46,
+      alpha: 0,
+      scale: 1.15,
+      duration: 1100,
+      ease: "Cubic.easeOut",
+      onComplete: () => label.destroy(),
     });
   }
 
@@ -848,6 +879,7 @@ export class GameScene extends Phaser.Scene {
       drops: this.state.totalDrops,
       biggestTier: this.state.biggestTier,
       dailyKey: this.state.dailyKey,
+      seed: this.state.seed,
       events: this.replayLog,
     });
     this.scene.pause();

@@ -104,19 +104,33 @@ export class GameState {
   biggestTier = 0;
   /** Undos left this run — the panic button for a misfired drop. */
   undosLeft = UNDOS_PER_RUN;
+  /** Drops taken since the bin was last emptied — sizes the clear bonus. */
+  dropsSinceClear = 0;
   /** Set for a daily-challenge run: everyone gets this same food sequence. */
   readonly dailyKey: string | null;
+  /**
+   * The RNG seed. Exposed so a casual run can be submitted and replayed too:
+   * the game is deterministic given seed + inputs, which is what lets the
+   * all-time leaderboard be verified rather than self-reported.
+   */
+  readonly seed: number;
   /** Active daily modifiers — empty for a normal run. Derived from the key so
    *  the server reproduces the same set. */
   readonly mods: ModId[];
 
   private rng: Rng;
 
-  /** Pass a daily key to get a deterministic run everyone else also gets. */
-  constructor(dailyKey: string | null = null) {
+  /**
+   * Pass a daily key to get a deterministic run everyone else also gets, or a
+   * seed to reproduce a specific past run (how the server replays a casual one).
+   */
+  constructor(dailyKey: string | null = null, seed?: number) {
     this.dailyKey = dailyKey;
     this.mods = dailyKey ? dailyModifiers(dailyKey) : [];
-    this.rng = new Rng(dailyKey ? hashSeed(dailyKey) : (Math.random() * 2 ** 32) >>> 0);
+    this.seed = dailyKey
+      ? hashSeed(dailyKey)
+      : seed ?? (Math.random() * 2 ** 32) >>> 0;
+    this.rng = new Rng(this.seed);
     this.craving = this.rollCraving();
     for (let i = 0; i < CRAVING_QUEUE_LEN; i++)
       this.cravingQueue.push(this.rollCraving());
@@ -177,24 +191,62 @@ export class GameState {
   }
 
   /** Take the next food to drop and refill the queue. */
-  takeDrop(): Spec {
+  private takeDrop(): Spec {
     const spec = this.dropQueue.shift()!;
     this.dropQueue.push(this.rollDrop());
     this.cravingAge++;
     this.totalDrops++;
+    this.dropsSinceClear++;
     return spec;
   }
 
   /**
-   * Put a drop back exactly as it was — undoes takeDrop, including the
-   * freshness tick, so an undo can't be used to farm the freshness bonus.
+   * The food a single drop action produces: one normally, two under Double
+   * Drop — and under Double Drop they are two SEPARATE queue draws, never two
+   * copies. Two identical foods released together just fused in mid-air, which
+   * read as a glitch rather than a modifier. If the pair would still match,
+   * the second is nudged a tier so they can't merge with each other on the way
+   * down. Deterministic, so the server reproduces it exactly.
    */
-  returnDrop(spec: Spec): void {
-    this.dropQueue.pop();
-    this.dropQueue.unshift(spec);
-    if (this.cravingAge > 0) this.cravingAge--;
-    this.totalDrops = Math.max(0, this.totalDrops - 1);
+  takeDrops(): Spec[] {
+    const first = this.takeDrop();
+    if (!this.has("double")) return [first];
+    const second = this.takeDrop();
+    if (second.type.id === first.type.id && second.tier === first.tier) {
+      second.tier =
+        second.tier >= MAX_DROP_TIER ? second.tier - 1 : second.tier + 1;
+    }
+    return [first, second];
+  }
+
+  /**
+   * Put a whole drop action back exactly as it was — including the freshness
+   * tick, so an undo can't be used to farm the freshness bonus. Costs one undo
+   * however many foods that action produced.
+   */
+  returnDrops(specs: Spec[]): void {
+    for (let i = specs.length - 1; i >= 0; i--) {
+      this.dropQueue.pop();
+      this.dropQueue.unshift(specs[i]);
+      if (this.cravingAge > 0) this.cravingAge--;
+      this.totalDrops = Math.max(0, this.totalDrops - 1);
+      if (this.dropsSinceClear > 0) this.dropsSinceClear--;
+    }
     this.undosLeft--;
+  }
+
+  /**
+   * Emptying the bin completely. Worth more the bigger the mess you cleared,
+   * measured in drops since the last clear — otherwise the early game, where
+   * the bin is nearly empty anyway, would hand out a flat jackpot every few
+   * feeds. Floored so a lucky early clear is still a small treat, capped so it
+   * can't eclipse the feeding it took to get there.
+   */
+  awardBinClear(): number {
+    const points = clamp(this.dropsSinceClear * 40, 100, 1200);
+    this.score += points;
+    this.dropsSinceClear = 0;
+    return points;
   }
 
   /** Track the biggest food ever built, for the run summary. */

@@ -18,6 +18,8 @@ interface GameOverData {
   drops: number;
   biggestTier: number;
   dailyKey: string | null;
+  /** The run's RNG seed, so the server can replay a casual run too. */
+  seed: number;
   events: ReplayEvent[];
 }
 
@@ -59,29 +61,29 @@ export class GameOverScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(10);
 
-    if (data.dailyKey) syncNote.setText("Checking sign-in…");
+    syncNote.setText("Checking sign-in…");
     // Wait for the stored session to load before deciding — otherwise a quick
     // game-over can conclude "signed out" while the session is still loading.
     void Cloud.ready.then(() => {
       if (!Cloud.signedIn) {
-        if (data.dailyKey) {
-          syncNote
-            .setText("Not posted — sign in to join the leaderboard")
-            .setColor("#ff9d5c");
-        } else {
-          syncNote.setText("");
-        }
+        syncNote
+          .setText("Not posted — sign in to join the leaderboards")
+          .setColor("#ff9d5c");
         return;
       }
       void Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
-      if (!data.dailyKey) {
-        syncNote.setText("");
-        return;
-      }
+      // EVERY run is submitted now, not just dailies: a casual run carries its
+      // seed, so the server can replay it for the all-time board too.
       syncNote.setText("Posting to leaderboard…");
-      void Cloud.submitDaily(data.dailyKey, run, data.events).then((r) => {
+      void Cloud.submitDaily(data.dailyKey, data.seed, run, data.events).then((r) => {
         if (r.ok && r.verified) {
-          syncNote.setText("Verified and posted to the leaderboard").setColor("#37e0d0");
+          syncNote
+            .setText(
+              data.dailyKey
+                ? "Verified — posted to today's board"
+                : "Verified — counted for all-time"
+            )
+            .setColor("#37e0d0");
         } else {
           syncNote
             .setText(`Not posted: ${r.error ?? "unknown error"}`)

@@ -1,7 +1,7 @@
 // GENERATED — do not edit. Copied from src/systems/Replay.ts by scripts/sync-edge-shared.mjs.
 // Edit the original and re-run `npm run sync:edge`.
 
-import { GameState } from "./GameState.ts";
+import { GameState, Spec } from "./GameState.ts";
 import { MAX_TIER } from "./foods.ts";
 
 /**
@@ -61,12 +61,18 @@ export interface VerifyResult {
 const MAX_EVENTS = 40000;
 
 /**
- * Re-run an event log against a fresh GameState seeded from `dailyKey`, and
- * report the score it genuinely produces. Bag counts stand in for the physical
- * pile: the exact positions don't affect scoring, only what exists.
+ * Re-run an event log and report the score it genuinely produces. Bag counts
+ * stand in for the physical pile: the exact positions don't affect scoring,
+ * only what exists.
+ *
+ * Pass a `dailyKey` for a daily run, or a raw `seed` for a casual one — a
+ * casual game is just as deterministic, which is what lets the all-time
+ * leaderboard be verified instead of self-reported. (A determined player could
+ * hunt for a favourable seed offline, but they still have to actually play it:
+ * the event log has to hold up.)
  */
 export function verifyRun(
-  dailyKey: string,
+  source: { dailyKey?: string | null; seed?: number },
   events: ReplayEvent[],
   claimedScore: number
 ): VerifyResult {
@@ -79,23 +85,29 @@ export function verifyRun(
     reason,
   });
 
-  const state = new GameState(dailyKey);
+  const state = new GameState(source.dailyKey ?? null, source.seed);
   if (!Array.isArray(events)) return fail("no event log", state);
   if (events.length > MAX_EVENTS) return fail("event log too long", state);
 
-  /** How many foods of each tier are in the bin. */
+  /** How many foods of each tier are in the bin, plus a running total so we
+   *  can spot the bin being emptied. */
   const bin = new Map<number, number>();
+  let binTotal = 0;
   const take = (tier: number, n: number): boolean => {
     const have = bin.get(tier) ?? 0;
     if (have < n) return false;
     bin.set(tier, have - n);
+    binTotal -= n;
     return true;
   };
-  const give = (tier: number, n: number) => bin.set(tier, (bin.get(tier) ?? 0) + n);
+  const give = (tier: number, n: number) => {
+    bin.set(tier, (bin.get(tier) ?? 0) + n);
+    binTotal += n;
+  };
 
-  // Undo needs to put the exact food back, so remember the last drop and how
-  // many foods it produced (two under Double Drop).
-  let lastDrop: { tier: number; fromPocket: boolean; count: number } | null = null;
+  // Undo needs to put the exact food back, so remember the whole last drop
+  // action (two separate foods under Double Drop).
+  let lastDrop: { specs: Spec[]; fromPocket: boolean } | null = null;
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
@@ -111,14 +123,16 @@ export function verifyRun(
           if (!p) return fail(`event ${i}: unstash with empty pocket`, state);
           give(p.tier, 1);
           state.noteTier(p.tier);
-          lastDrop = { tier: p.tier, fromPocket: true, count: 1 };
+          lastDrop = { specs: [p], fromPocket: true };
         } else {
-          const spec = state.takeDrop();
-          const count = state.dropCount; // two under Double Drop
-          give(spec.tier, count);
-          state.noteTier(spec.tier);
-          for (let k = 0; k < count; k++) state.addDropScore(spec.tier);
-          lastDrop = { tier: spec.tier, fromPocket: false, count };
+          // One or two separate foods, exactly as the client drew them.
+          const specs = state.takeDrops();
+          for (const s of specs) {
+            give(s.tier, 1);
+            state.noteTier(s.tier);
+            state.addDropScore(s.tier);
+          }
+          lastDrop = { specs, fromPocket: false };
         }
         break;
       }
@@ -138,6 +152,9 @@ export function verifyRun(
         if (!take(arg, 1)) return fail(`event ${i}: fed a ${arg} you didn't have`, state);
         const result = state.feed(state.craving.type, arg);
         if (!result) return fail(`event ${i}: fed ${arg}, craving was ${state.craving.tier}`, state);
+        // Feeding the last food clears the bin. Derived from the replay's own
+        // bookkeeping rather than trusted from an event, so it can't be forged.
+        if (binTotal === 0) state.awardBinClear();
         lastDrop = null;
         break;
       }
@@ -155,16 +172,16 @@ export function verifyRun(
       case Ev.Undo: {
         if (state.undosLeft <= 0) return fail(`event ${i}: out of undos`, state);
         if (!lastDrop) return fail(`event ${i}: nothing to undo`, state);
-        if (!take(lastDrop.tier, lastDrop.count))
-          return fail(`event ${i}: undo target missing`, state);
+        for (const s of lastDrop.specs) {
+          if (!take(s.tier, 1)) return fail(`event ${i}: undo target missing`, state);
+        }
         if (lastDrop.fromPocket) {
-          state.pocket = { type: state.craving.type, tier: lastDrop.tier };
+          state.pocket = lastDrop.specs[0];
           state.undosLeft--;
         } else {
           // Refund the drop bonus for every food this drop added.
-          for (let k = 0; k < lastDrop.count; k++)
-            state.removeDropScore(lastDrop.tier);
-          state.returnDrop({ type: state.craving.type, tier: lastDrop.tier });
+          for (const s of lastDrop.specs) state.removeDropScore(s.tier);
+          state.returnDrops(lastDrop.specs);
         }
         lastDrop = null;
         break;

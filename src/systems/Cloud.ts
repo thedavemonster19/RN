@@ -172,14 +172,18 @@ class CloudService {
    * score simply fails to reproduce and is rejected.
    */
   async submitDaily(
-    dailyKey: string,
+    dailyKey: string | null,
+    seed: number,
     run: RunRecord,
     events: ReplayEvent[]
   ): Promise<{ ok: boolean; error?: string; verified?: boolean }> {
     if (!this.client || !this.userId) return { ok: false, error: "Not signed in" };
     const { data, error } = await this.client.functions.invoke("verify-run", {
       body: {
+        // A casual run carries its seed instead of a date — it's just as
+        // reproducible, which is what makes the all-time board verifiable.
         daily_key: dailyKey,
+        seed,
         score: run.score,
         events,
         version: REPLAY_VERSION,
@@ -191,6 +195,29 @@ class CloudService {
       verified: !!data?.verified,
       error: data?.reason,
     };
+  }
+
+  /** All-time standings — every verified run, best per player. */
+  async allTimeLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
+    if (!this.client) return [];
+    const { data, error } = await this.client
+      .from("all_time_leaderboard")
+      .select("username, monster, score, milestone, verified")
+      .order("score", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return data as LeaderboardRow[];
+  }
+
+  /** This player's own verified all-time best, or 0. */
+  async myBest(): Promise<number> {
+    if (!this.client || !this.userId) return 0;
+    const { data } = await this.client
+      .from("best_scores")
+      .select("score")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    return data?.score ?? 0;
   }
 
   async leaderboard(dailyKey: string, limit = 50): Promise<LeaderboardRow[]> {
