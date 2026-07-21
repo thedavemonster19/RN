@@ -58,7 +58,7 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5, 0)
       .setDepth(depth);
@@ -67,7 +67,7 @@ export class Hud {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5, 0)
       .setDepth(depth);
@@ -78,7 +78,7 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "500",
-        color: "#ff6b7d",
+        color: "#ff5d78",
       })
       .setOrigin(0.5, 1)
       .setDepth(depth)
@@ -91,11 +91,11 @@ export class Hud {
     // stack of lookahead discs.
     const px = GAME.WIDTH - 30;
     const panel = scene.add.graphics().setDepth(depth - 1);
-    panel.fillStyle(0xffffff, 0.06);
+    panel.fillStyle(0xffffff, 0.13);
     panel.fillRoundedRect(px - 26, 100, 52, 134, 12);
     scene.add
       .text(px, 108, "WANTS", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.wantDisc = scene.add.image(px, 140, "food1").setDepth(depth);
@@ -105,33 +105,33 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "13px",
         fontStyle: "700",
-        color: "#1b1f3d",
+        color: "#141033",
       })
       .setOrigin(0.5)
       .setDepth(depth + 1);
     scene.add
       .text(px, 180, "THEN", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.cravingDiscs = [206].map((qy) =>
-      scene.add.image(px, qy, "food1").setAlpha(0.75).setDepth(depth)
+      scene.add.image(px, qy, "food1").setAlpha(0.9).setDepth(depth)
     );
 
     // DROPS panel (left): the food you're about to drop, and what follows.
     const dx = 30;
     const dpanel = scene.add.graphics().setDepth(depth - 1);
-    dpanel.fillStyle(0xffffff, 0.06);
+    dpanel.fillStyle(0xffffff, 0.13);
     dpanel.fillRoundedRect(dx - 26, 200, 52, 150, 12);
     scene.add
       .text(dx, 208, "DROPS", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#9aa3d0" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.dropDiscs = [236, 268, 298, 326].map((qy, i) =>
       scene.add
         .image(dx, qy, "food1")
-        .setAlpha(i === 0 ? 1 : 0.6)
+        .setAlpha(i === 0 ? 1 : 0.82)
         .setDepth(depth)
     );
 
@@ -155,7 +155,7 @@ export class Hud {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5)
       .setDepth(depth);
@@ -175,7 +175,7 @@ export class Hud {
     this.chainDiscs.forEach((d, i) => {
       const tier = i + 1;
       d.setTint(foodColor(s.craving.type, tier));
-      d.setAlpha(tier === s.craving.tier ? 1 : 0.4);
+      d.setAlpha(tier === s.craving.tier ? 1 : 0.7);
     });
     s.cravingQueue.forEach((c, i) => {
       const d = this.cravingDiscs[i];
@@ -210,7 +210,7 @@ export class Hud {
     // burns down as you take drops, and empty just means base pay.
     const px = GAME.WIDTH - 30;
     const f = s.freshness;
-    g.fillStyle(0xffffff, 0.14);
+    g.fillStyle(0xffffff, 0.2);
     g.fillRoundedRect(px - 20, 166, 40, 5, 2);
     if (f > 0) {
       g.fillStyle(f > 0.6 ? COLORS.teal : f > 0.25 ? COLORS.amber : COLORS.coral, 1);

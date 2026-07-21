@@ -40,7 +40,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5);
     this.add
@@ -48,14 +48,14 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5);
 
     const best = Save.bestRun;
     const panelY = 150;
     const panel = this.add.graphics();
-    panel.fillStyle(0xffffff, 0.05);
+    panel.fillStyle(0xffffff, 0.12);
     panel.fillRoundedRect(36, panelY, WIDTH - 72, best ? 190 : 96, 16);
 
     this.add
@@ -63,7 +63,7 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5);
 
@@ -73,7 +73,7 @@ export class ProfileScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "13px",
-          color: "#aeb6e6",
+          color: "#dfe3ff",
         })
         .setOrigin(0.5);
     } else {
@@ -83,7 +83,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "40px",
           fontStyle: "600",
-          color: "#ffe08a",
+          color: "#ffd93d",
         })
         .setOrigin(0.5);
 
@@ -96,7 +96,7 @@ export class ProfileScene extends Phaser.Scene {
         const y = panelY + 96 + i * 24;
         this.add
           .text(58, y, label, { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "13px", color: "#9aa3d0" })
+        resolution: TEXT_RES, fontSize: "13px", color: "#c3c8f5" })
           .setOrigin(0, 0.5);
         this.add
           .text(WIDTH - 58, y, value, {
@@ -104,7 +104,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
             fontSize: "13px",
             fontStyle: "600",
-            color: "#eaf0ff",
+            color: "#ffffff",
           })
           .setOrigin(1, 0.5);
       });
@@ -112,7 +112,7 @@ export class ProfileScene extends Phaser.Scene {
       const y = panelY + 168;
       this.add
         .text(58, y, "Biggest food", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "13px", color: "#9aa3d0" })
+        resolution: TEXT_RES, fontSize: "13px", color: "#c3c8f5" })
         .setOrigin(0, 0.5);
       const disc = this.add.image(WIDTH - 96, y, tierTexture(best.biggestTier || 1));
       disc.setDisplaySize(20, 20);
@@ -123,7 +123,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
-          color: "#eaf0ff",
+          color: "#ffffff",
         })
         .setOrigin(1, 0.5);
     }
@@ -144,7 +144,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "22px",
           fontStyle: "600",
-          color: "#ffe08a",
+          color: "#ffd93d",
         })
         .setOrigin(0.5);
       this.add
@@ -152,7 +152,7 @@ export class ProfileScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "10px",
-          color: "#9aa3d0",
+          color: "#c3c8f5",
         })
         .setOrigin(0.5);
     });
@@ -170,7 +170,7 @@ export class ProfileScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "11px",
-          color: "#6f78a8",
+          color: "#a6adde",
           align: "center",
           lineSpacing: 4,
         }

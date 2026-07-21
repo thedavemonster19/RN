@@ -47,9 +47,12 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
       g.fillStyle(0xffffff, hover ? 0.28 : 0.16);
       g.fillRoundedRect(left + 3, top + 2, w - 6, HEIGHT * 0.45, RADIUS - 4);
     } else {
-      g.fillStyle(0xffffff, hover ? 0.15 : 0.07);
+      g.fillStyle(COLORS.cardFill, 1);
       g.fillRoundedRect(left, top, w, HEIGHT, RADIUS);
-      g.lineStyle(2, 0xffffff, hover ? 0.34 : 0.2);
+      // A brighter top edge catches the light and stops the fill reading flat.
+      g.fillStyle(0xffffff, hover ? 0.16 : 0.09);
+      g.fillRoundedRect(left + 3, top + 2, w - 6, HEIGHT * 0.42, RADIUS - 4);
+      g.lineStyle(2, COLORS.violet, hover ? 0.85 : 0.5);
       g.strokeRoundedRect(left, top, w, HEIGHT, RADIUS);
     }
   };
@@ -61,7 +64,7 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
         resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
-      color: o.primary ? "#0d1226" : "#eaf0ff",
+      color: o.primary ? "#140d3d" : "#ffffff",
     })
     .setOrigin(0.5)
     .setDepth(depth + 1);

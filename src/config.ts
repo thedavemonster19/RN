@@ -27,21 +27,35 @@ export const UI_FONT =
  */
 export const TEXT_RES = 3;
 
-/** Clean-modern palette (matches the approved look-and-feel mockup). */
+/**
+ * Bright, saturated palette. The old one was a muted navy that made everything
+ * read as washed out and, frankly, dull. This keeps a dark base — the food
+ * discs are vivid and need something to pop against — but pushes it to a
+ * saturated violet-indigo and brightens every accent, so the UI feels lit
+ * rather than grey.
+ *
+ * Panels sit at higher alpha too (see PANEL_*), which is what turns them from
+ * faint smudges into actual cards.
+ */
 export const COLORS = {
-  bgTop: 0x2a3366,
-  bgBottom: 0x141733,
-  screen: 0x0d1226,
-  text: 0xeaf0ff,
-  textMuted: 0x9aa3d0,
-  teal: 0x37e0d0,
-  tealDeep: 0x1a9f86,
-  amber: 0xf7b955,
-  coral: 0xf27a9b,
-  danger: 0xe24b6a,
-  gold: 0xffd66b,
-  cardFill: 0x2a3366,
+  bgTop: 0x4c3fd6,
+  bgBottom: 0x1b1352,
+  screen: 0x140d3d,
+  text: 0xffffff,
+  textMuted: 0xc3c8f5,
+  teal: 0x2ff0d6,
+  tealDeep: 0x14b39a,
+  amber: 0xffc93c,
+  coral: 0xff6fa5,
+  danger: 0xff4d6d,
+  gold: 0xffd93d,
+  violet: 0xa78bfa,
+  cardFill: 0x2f2585,
 } as const;
+
+/** Standard card/panel fills, bright enough to read as surfaces. */
+export const PANEL_FILL = 0.12;
+export const PANEL_STROKE = 0.3;
 
 /**
  * The bin (play area) the pile of food lives in, in base coordinates.

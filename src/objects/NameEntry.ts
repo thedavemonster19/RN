@@ -26,9 +26,9 @@ export function openNameEntry(
     .setDepth(depth)
     .setInteractive();
   const panel = scene.add.graphics().setDepth(depth + 1);
-  panel.fillStyle(0xffffff, 0.06);
+  panel.fillStyle(0xffffff, 0.13);
   panel.fillRoundedRect(WIDTH / 2 - 150, cy - 100, 300, 236, 18);
-  panel.lineStyle(1.5, 0xffffff, 0.14);
+  panel.lineStyle(2, 0xffffff, 0.3);
   panel.strokeRoundedRect(WIDTH / 2 - 150, cy - 100, 300, 236, 18);
 
   const title = scene.add
@@ -37,7 +37,7 @@ export function openNameEntry(
         resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
-      color: "#eaf0ff",
+      color: "#ffffff",
     })
     .setOrigin(0.5)
     .setDepth(depth + 2);
@@ -46,7 +46,7 @@ export function openNameEntry(
       fontFamily: FONT,
         resolution: TEXT_RES,
       fontSize: "12px",
-      color: "#9aa3d0",
+      color: "#c3c8f5",
     })
     .setOrigin(0.5)
     .setDepth(depth + 2);

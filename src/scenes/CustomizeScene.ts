@@ -49,7 +49,7 @@ export class CustomizeScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5);
 
@@ -63,7 +63,7 @@ export class CustomizeScene extends Phaser.Scene {
 
     const panelY = 340;
     const panel = this.add.graphics();
-    panel.fillStyle(0xffffff, 0.05);
+    panel.fillStyle(0xffffff, 0.12);
     panel.fillRoundedRect(36, panelY, WIDTH - 72, 210, 16);
 
     this.add
@@ -71,7 +71,7 @@ export class CustomizeScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5);
 
@@ -82,7 +82,7 @@ export class CustomizeScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: "#aeb6e6",
+          color: "#dfe3ff",
         })
         .setOrigin(0, 0.5);
       this.add
@@ -90,7 +90,7 @@ export class CustomizeScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: "#6f78a8",
+          color: "#a6adde",
         })
         .setOrigin(1, 0.5);
     });
@@ -104,7 +104,7 @@ export class CustomizeScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "11px",
-          color: "#6f78a8",
+          color: "#a6adde",
           align: "center",
           lineSpacing: 4,
         }

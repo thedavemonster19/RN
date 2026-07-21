@@ -28,7 +28,7 @@ export class MenuScene extends Phaser.Scene {
   /** Five 54px-tall buttons plus the daily-twist footer have to clear
    *  GAME.HEIGHT (720): stack ends at TOP + 4·GAP + 27 = 659, footer text
    *  centres at 700 — clear of each other, with 6px between buttons. */
-  private static BUTTON_TOP = 392;
+  private static BUTTON_TOP = 404;
   private static BUTTON_GAP = 60;
 
   constructor() {
@@ -56,7 +56,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
-        color: "#ffe08a",
+        color: "#ffd93d",
       })
       .setOrigin(0.5, 0);
     this.bestLabel = this.add
@@ -64,7 +64,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5, 0);
 
@@ -74,7 +74,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "500",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5);
 
@@ -149,7 +149,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
       })
       .setOrigin(0.5)
       .setDepth(5);
@@ -174,7 +174,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "600",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5);
     this.add
@@ -182,7 +182,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#6f78a8",
+        color: "#a6adde",
       })
       .setOrigin(0.5);
 

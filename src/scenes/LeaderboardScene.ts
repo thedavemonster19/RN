@@ -51,7 +51,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "600",
-        color: "#eaf0ff",
+        color: "#ffffff",
       })
       .setOrigin(0.5);
     this.subtitle = this.add
@@ -59,7 +59,7 @@ export class LeaderboardScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
         align: "center",
         lineSpacing: 3,
       })
@@ -70,7 +70,7 @@ export class LeaderboardScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "13px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
         align: "center",
         lineSpacing: 6,
         wordWrap: { width: WIDTH - 80 },
@@ -179,7 +179,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
-          color: i < 3 ? "#ffe08a" : "#9aa3d0",
+          color: i < 3 ? "#ffd93d" : "#c3c8f5",
         })
         .setOrigin(0, 0.5);
       const name = this.add
@@ -187,7 +187,7 @@ export class LeaderboardScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: mine ? "#37e0d0" : "#eaf0ff",
+          color: mine ? "#2ff0d6" : "#ffffff",
         })
         .setOrigin(0, 0.5);
       const score = this.add
@@ -196,7 +196,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "14px",
           fontStyle: "600",
-          color: "#eaf0ff",
+          color: "#ffffff",
         })
         .setOrigin(1, 0.5);
       this.rowObjects.push(rank, name, score);
@@ -208,7 +208,7 @@ export class LeaderboardScene extends Phaser.Scene {
         top + Math.min(rows.length, 12) * 34 + 18,
         "Every score replayed and verified on the server.",
         { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#6f78a8" }
+        resolution: TEXT_RES, fontSize: "10px", color: "#a6adde" }
       )
       .setOrigin(0.5);
   }

@@ -55,7 +55,7 @@ export class GameOverScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#9aa3d0",
+        color: "#c3c8f5",
         align: "center",
         wordWrap: { width: WIDTH - 60 },
       })
@@ -69,7 +69,7 @@ export class GameOverScene extends Phaser.Scene {
       if (!Cloud.signedIn) {
         syncNote
           .setText("Not posted — sign in to join the leaderboards")
-          .setColor("#ff9d5c");
+          .setColor("#ffb35c");
         return;
       }
       void Cloud.pushProgress(Save.name, Save.best, Save.bestRun, Save.runs);
@@ -84,11 +84,11 @@ export class GameOverScene extends Phaser.Scene {
                 ? "Verified — posted to today's board"
                 : "Verified — counted for all-time"
             )
-            .setColor("#37e0d0");
+            .setColor("#2ff0d6");
         } else {
           syncNote
             .setText(`Not posted: ${r.error ?? "unknown error"}`)
-            .setColor("#ff9d5c");
+            .setColor("#ffb35c");
         }
       });
     });
@@ -108,7 +108,7 @@ export class GameOverScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "13px",
-        color: "#aeb6e6",
+        color: "#dfe3ff",
       })
       .setOrigin(0.5);
 
@@ -118,7 +118,7 @@ export class GameOverScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "44px",
         fontStyle: "600",
-        color: "#ffe08a",
+        color: "#ffd93d",
       })
       .setOrigin(0.5);
     this.add
@@ -131,7 +131,7 @@ export class GameOverScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: isBest ? "600" : "400",
-          color: isBest ? "#37e0d0" : "#9aa3d0",
+          color: isBest ? "#2ff0d6" : "#c3c8f5",
         }
       )
       .setOrigin(0.5);
@@ -139,7 +139,7 @@ export class GameOverScene extends Phaser.Scene {
     // Run summary — what actually happened, not just the number.
     const rowY = top + 152;
     const panel = this.add.graphics();
-    panel.fillStyle(0xffffff, 0.05);
+    panel.fillStyle(0xffffff, 0.12);
     panel.fillRoundedRect(WIDTH / 2 - 140, rowY - 26, 280, 84, 14);
 
     const cols = [
@@ -155,7 +155,7 @@ export class GameOverScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "19px",
           fontStyle: "600",
-          color: "#eaf0ff",
+          color: "#ffffff",
         })
         .setOrigin(0.5);
       this.add
@@ -163,7 +163,7 @@ export class GameOverScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "10px",
-          color: "#9aa3d0",
+          color: "#c3c8f5",
         })
         .setOrigin(0.5);
     });
@@ -175,7 +175,7 @@ export class GameOverScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "10px",
-          color: "#9aa3d0",
+          color: "#c3c8f5",
         })
         .setOrigin(0.5);
       const disc = this.add.image(WIDTH / 2 + 22, rowY + 40, tierTexture(data.biggestTier));
@@ -187,7 +187,7 @@ export class GameOverScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
-          color: "#eaf0ff",
+          color: "#ffffff",
         })
         .setOrigin(0.5);
     }
@@ -197,7 +197,7 @@ export class GameOverScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "13px",
-        color: "#aeb6e6",
+        color: "#dfe3ff",
       })
       .setOrigin(0.5);
 
