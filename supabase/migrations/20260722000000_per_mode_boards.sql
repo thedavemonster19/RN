@@ -29,7 +29,15 @@ create index if not exists best_scores_mode_rank
 
 -- Expose the mode so the client can ask for one board at a time. Verified rows
 -- only, as before, so an unverified score can never surface through the view.
-create or replace view public.all_time_leaderboard as
+--
+-- DROP then CREATE, not CREATE OR REPLACE. Replacing a view can only APPEND
+-- columns; inserting `mode` at position 5 pushes `username` to 6, which
+-- Postgres reads as renaming column 5 and refuses:
+--   ERROR 42P16: cannot change name of view column "username" to "mode"
+-- Dropping first costs nothing here — the view holds no data, only a
+-- projection — but the grants go with it, so they are re-issued below.
+drop view if exists public.all_time_leaderboard;
+create view public.all_time_leaderboard as
   select b.score,
          b.milestone,
          b.feeds,
@@ -40,3 +48,8 @@ create or replace view public.all_time_leaderboard as
   from public.best_scores b
   join public.profiles p on p.id = b.user_id
   where b.verified is true;
+
+-- Dropping the view dropped its grants with it. Supabase's default privileges
+-- usually re-grant these for new objects in public, but stating them is what
+-- makes the migration reliable rather than dependent on project settings.
+grant select on public.all_time_leaderboard to anon, authenticated;
