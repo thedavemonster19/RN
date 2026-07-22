@@ -1,7 +1,7 @@
 // GENERATED — do not edit. Copied from src/systems/Replay.ts by scripts/sync-edge-shared.mjs.
 // Edit the original and re-run `npm run sync:edge`.
 
-import { ModeId } from "./Modes";
+import { ModeId } from "./Modes.ts";
 import { GameState, Spec } from "./GameState.ts";
 import { MAX_TIER } from "./foods.ts";
 

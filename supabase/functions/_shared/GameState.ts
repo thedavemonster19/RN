@@ -11,7 +11,7 @@ import {
 import { growthReq } from "./milestones.ts";
 import { Rng, hashSeed } from "./Rng.ts";
 import { ModId, dailyModifiers } from "./Modifiers.ts";
-import { ModeId, modeMods } from "./Modes";
+import { ModeId, modeMods } from "./Modes.ts";
 
 /** Local clamp — this module is deliberately dependency-free (see below). */
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
