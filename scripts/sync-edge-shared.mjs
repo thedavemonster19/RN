@@ -17,6 +17,7 @@ const FILES = [
   ["src/data/foods.ts", "foods.ts"],
   ["src/data/milestones.ts", "milestones.ts"],
   ["src/systems/Modifiers.ts", "Modifiers.ts"],
+  ["src/systems/Modes.ts", "Modes.ts"],
   ["src/systems/GameState.ts", "GameState.ts"],
   ["src/systems/Replay.ts", "replay.ts"],
 ];

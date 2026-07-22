@@ -5,6 +5,7 @@ import { Cloud, LeaderboardRow } from "../systems/Cloud";
 import { todayKey } from "../systems/Rng";
 import { dailyModifiers, MODS } from "../systems/Modifiers";
 import { Save } from "../systems/Save";
+import { MODES, ModeId, modeName } from "../systems/Modes";
 
 const FONT = UI_FONT;
 
@@ -20,6 +21,10 @@ type Tab = "daily" | "all";
  */
 export class LeaderboardScene extends Phaser.Scene {
   private tab: Tab = "daily";
+  /** Which mode's all-time board is showing. Ignored on the daily tab — the
+   *  daily has one shared board, since everyone plays the identical run. */
+  private mode: ModeId = "classic";
+  private modeUi: Phaser.GameObjects.GameObject[] = [];
   private rowObjects: Phaser.GameObjects.GameObject[] = [];
   private tabButtons: Button[] = [];
   private status!: Phaser.GameObjects.Text;
@@ -29,11 +34,13 @@ export class LeaderboardScene extends Phaser.Scene {
     super("Leaderboard");
   }
 
-  create(data: { tab?: Tab }) {
+  create(data: { tab?: Tab; mode?: ModeId }) {
     const { WIDTH, HEIGHT } = GAME;
     this.tab = data?.tab ?? "daily";
+    this.mode = data?.mode ?? "classic";
     this.rowObjects = [];
     this.tabButtons = [];
+    this.modeUi = [];
 
     const g = this.add.graphics();
     g.fillGradientStyle(
@@ -85,6 +92,7 @@ export class LeaderboardScene extends Phaser.Scene {
     });
 
     this.drawTabs();
+    this.drawModePicker();
     this.refresh();
   }
 
@@ -113,7 +121,62 @@ export class LeaderboardScene extends Phaser.Scene {
 
   private switchTab(tab: Tab): void {
     if (this.tab === tab) return;
-    this.scene.restart({ tab });
+    this.scene.restart({ tab, mode: this.mode });
+  }
+
+  /**
+   * Mode picker for the all-time tab: one board per mode, stepped with arrows.
+   *
+   * Arrows rather than a row of buttons because there are nine modes and the
+   * screen is 400px wide — nine tabs would be unreadable, and a scrolling list
+   * would fight the leaderboard rows below for the same gesture.
+   */
+  private drawModePicker(): void {
+    const { WIDTH } = GAME;
+    this.modeUi.forEach((o) => o.destroy());
+    this.modeUi = [];
+    if (this.tab !== "all") return;
+
+    // Clear of the tab buttons above: those sit at y=132 and are 54 tall, so
+    // they end at 159 — an 18px-radius arrow centred any higher overlaps them.
+    const y = 190;
+    const step = (dir: number) => {
+      const i = MODES.findIndex((m) => m.id === this.mode);
+      const next = MODES[(i + dir + MODES.length) % MODES.length];
+      this.scene.restart({ tab: this.tab, mode: next.id });
+    };
+
+    const label = this.add
+      .text(WIDTH / 2, y, modeName(this.mode), {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "15px",
+        fontStyle: "600",
+        color: "#2ff0d6",
+      })
+      .setOrigin(0.5);
+    this.modeUi.push(label);
+
+    for (const [dx, dir, glyph] of [
+      [-118, -1, "‹"],
+      [118, 1, "›"],
+    ] as [number, number, string][]) {
+      const hit = this.add
+        .circle(WIDTH / 2 + dx, y, 18, 0xffffff, 0.1)
+        .setStrokeStyle(1, 0xffffff, 0.28)
+        .setInteractive({ useHandCursor: true });
+      hit.on("pointerdown", () => step(dir));
+      const txt = this.add
+        .text(WIDTH / 2 + dx, y - 1, glyph, {
+          fontFamily: FONT,
+          resolution: TEXT_RES,
+          fontSize: "20px",
+          fontStyle: "600",
+          color: "#ffffff",
+        })
+        .setOrigin(0.5);
+      this.modeUi.push(hit, txt);
+    }
   }
 
   /** Not `load` — that's Phaser's LoaderPlugin on Scene. */
@@ -147,13 +210,13 @@ export class LeaderboardScene extends Phaser.Scene {
     const rows =
       this.tab === "daily"
         ? await Cloud.leaderboard(todayKey())
-        : await Cloud.allTimeLeaderboard();
+        : await Cloud.allTimeLeaderboard(this.mode);
     if (!this.scene.isActive()) return; // player left while it loaded
     if (rows.length === 0) {
       this.status.setText(
         this.tab === "daily"
           ? "Nobody has posted a score today.\nBe first."
-          : "No verified runs yet.\nPlay a game while signed in."
+          : `No verified runs in ${modeName(this.mode)} yet.\nPlay one while signed in.`
       );
       return;
     }

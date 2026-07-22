@@ -13,6 +13,7 @@
 // bundle.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { verifyRun, REPLAY_VERSION } from "../_shared/replay.ts";
+import { isModeId } from "../_shared/Modes.ts";
 
 const ALLOWED_ORIGINS = [
   "https://thedavemonster19.github.io",
@@ -67,7 +68,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     if (!body) return json({ accepted: false, reason: "Bad request body" }, 400);
 
-    const { daily_key, seed, score, events, version } = body;
+    const { daily_key, mode, seed, score, events, version } = body;
     if (version !== REPLAY_VERSION) {
       return json({
         accepted: false,
@@ -88,9 +89,18 @@ Deno.serve(async (req: Request) => {
       return json({ accepted: false, reason: "Missing run seed" });
     }
 
+    // The mode decides which modifiers the run is replayed under and which
+    // board it lands on, so an unknown id must be REJECTED rather than quietly
+    // treated as classic: silently downgrading would let a player submit a
+    // Big Appetite run and have it scored — and ranked — as a classic one.
+    const modeId = isDaily ? "classic" : mode;
+    if (!isDaily && !isModeId(modeId)) {
+      return json({ accepted: false, reason: "Unknown game mode" });
+    }
+
     // --- re-run the whole thing --------------------------------------------
     const result = verifyRun(
-      isDaily ? { dailyKey: daily_key } : { seed },
+      isDaily ? { dailyKey: daily_key } : { seed, mode: modeId },
       events,
       score
     );
@@ -104,25 +114,32 @@ Deno.serve(async (req: Request) => {
     );
 
     // --- all-time board: every verified run counts, best one kept ----------
-    const { data: bestRow } = await admin
-      .from("best_scores")
-      .select("score")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!bestRow || bestRow.score < result.score) {
-      await admin.from("best_scores").upsert(
-        {
-          user_id: userId,
-          score: result.score,
-          milestone: result.biggestTier,
-          feeds: result.feeds,
-          drops: result.drops,
-          game_version: REPLAY_VERSION,
-          verified: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
+    // Daily runs are ranked on the daily board only — they would otherwise
+    // also enter the classic all-time board while carrying the day's random
+    // modifiers, which is not the same game classic players are playing.
+    if (!isDaily) {
+      const { data: bestRow } = await admin
+        .from("best_scores")
+        .select("score")
+        .eq("user_id", userId)
+        .eq("mode", modeId)
+        .maybeSingle();
+      if (!bestRow || bestRow.score < result.score) {
+        await admin.from("best_scores").upsert(
+          {
+            user_id: userId,
+            mode: modeId,
+            score: result.score,
+            milestone: result.biggestTier,
+            feeds: result.feeds,
+            drops: result.drops,
+            game_version: REPLAY_VERSION,
+            verified: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,mode" }
+        );
+      }
     }
 
     if (!isDaily) {

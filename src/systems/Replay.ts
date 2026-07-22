@@ -1,3 +1,4 @@
+import { ModeId } from "./Modes";
 import { GameState, Spec } from "./GameState";
 import { MAX_TIER } from "../data/foods";
 
@@ -69,7 +70,7 @@ const MAX_EVENTS = 40000;
  * the event log has to hold up.)
  */
 export function verifyRun(
-  source: { dailyKey?: string | null; seed?: number },
+  source: { dailyKey?: string | null; seed?: number; mode?: ModeId },
   events: ReplayEvent[],
   claimedScore: number
 ): VerifyResult {
@@ -82,7 +83,7 @@ export function verifyRun(
     reason,
   });
 
-  const state = new GameState(source.dailyKey ?? null, source.seed);
+  const state = new GameState(source.dailyKey ?? null, source.seed, source.mode ?? "classic");
   if (!Array.isArray(events)) return fail("no event log", state);
   if (events.length > MAX_EVENTS) return fail("event log too long", state);
 

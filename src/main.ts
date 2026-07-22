@@ -6,6 +6,7 @@ import { GameScene } from "./scenes/GameScene";
 import { GameOverScene } from "./scenes/GameOverScene";
 import { ProfileScene } from "./scenes/ProfileScene";
 import { AccountScene } from "./scenes/AccountScene";
+import { ModeSelectScene } from "./scenes/ModeSelectScene";
 import { LeaderboardScene } from "./scenes/LeaderboardScene";
 import { CustomizeScene } from "./scenes/CustomizeScene";
 
@@ -43,6 +44,7 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [
     BootScene,
     MenuScene,
+    ModeSelectScene,
     GameScene,
     GameOverScene,
     ProfileScene,

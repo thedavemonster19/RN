@@ -211,11 +211,20 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  /** dailyKey non-null = the shared daily seed everyone gets today. */
+  /**
+   * dailyKey non-null = the shared daily seed everyone gets today.
+   *
+   * A normal new game goes via mode select instead of starting immediately;
+   * the daily has no mode to choose, since its twists come from the date.
+   */
   private startGame(dailyKey: string | null): void {
     // Never start unnamed — the name is on the HUD and the game-over card.
     if (!Save.named) {
       this.promptName(true);
+      return;
+    }
+    if (!dailyKey) {
+      this.scene.start("ModeSelect");
       return;
     }
     // Starting a fresh run: fully stop any paused game first, so scene.start

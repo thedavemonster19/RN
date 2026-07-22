@@ -8,6 +8,7 @@ import {
 import { growthReq } from "../data/milestones";
 import { Rng, hashSeed } from "./Rng";
 import { ModId, dailyModifiers } from "./Modifiers";
+import { ModeId, modeMods } from "./Modes";
 
 /** Local clamp — this module is deliberately dependency-free (see below). */
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -114,19 +115,33 @@ export class GameState {
    * all-time leaderboard be verified rather than self-reported.
    */
   readonly seed: number;
-  /** Active daily modifiers — empty for a normal run. Derived from the key so
-   *  the server reproduces the same set. */
+  /** The permanent mode being played. Daily runs are always "classic" here —
+   *  their twists come from the date, not from a chosen mode. */
+  readonly mode: ModeId;
+  /** Active modifiers. For a daily run these come from the date; otherwise from
+   *  the chosen mode. Either way they are DERIVED, never passed in, so the
+   *  server reproduces the same set from the same inputs. */
   readonly mods: ModId[];
 
   private rng: Rng;
 
   /**
-   * Pass a daily key to get a deterministic run everyone else also gets, or a
-   * seed to reproduce a specific past run (how the server replays a casual one).
+   * Pass a daily key to get a deterministic run everyone else also gets, a mode
+   * to play a permanent twist, or a seed to reproduce a specific past run (how
+   * the server replays a submitted one).
+   *
+   * A daily key wins over a mode: the daily's whole point is that everyone gets
+   * the identical run, so letting a mode stack extra modifiers on top would
+   * break that and hand the player a scoring advantage over the same board.
    */
-  constructor(dailyKey: string | null = null, seed?: number) {
+  constructor(
+    dailyKey: string | null = null,
+    seed?: number,
+    mode: ModeId = "classic"
+  ) {
     this.dailyKey = dailyKey;
-    this.mods = dailyKey ? dailyModifiers(dailyKey) : [];
+    this.mode = dailyKey ? "classic" : mode;
+    this.mods = dailyKey ? dailyModifiers(dailyKey) : modeMods(mode);
     this.seed = dailyKey
       ? hashSeed(dailyKey)
       : seed ?? (Math.random() * 2 ** 32) >>> 0;

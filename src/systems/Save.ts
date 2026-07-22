@@ -27,6 +27,8 @@ interface SaveData {
   runs: number;
   /** Best daily-challenge score, keyed by date (YYYY-MM-DD). */
   daily: Record<string, number>;
+  /** Best score per permanent mode, keyed by mode id. */
+  modes: Record<string, number>;
 }
 
 const DEFAULTS: SaveData = {
@@ -35,6 +37,7 @@ const DEFAULTS: SaveData = {
   bestRun: null,
   runs: 0,
   daily: {},
+  modes: {},
 };
 
 /** Names offered when the player can't be bothered to think of one. */
@@ -103,15 +106,53 @@ export const Save = {
     return read().daily[key] ?? 0;
   },
 
+  /** This device's best score in a given mode, or 0 if unplayed. */
+  modeBest(mode: string): number {
+    return read().modes[mode] ?? 0;
+  },
+
+  /**
+   * Fold an account's cloud progress into this device's save.
+   *
+   * Needed because the save is per-DEVICE while an account is not: signing in
+   * on a second device showed that device's history, so the same account
+   * displayed two different all-time bests. Progress only ever moves UP here —
+   * we take the max of each number rather than overwriting — so syncing can
+   * never cost a player a run they made offline on this device.
+   *
+   * The monster's name is the one exception: it is a preference, not a score,
+   * so the account's name wins whenever it has one.
+   */
+  mergeCloud(cloud: {
+    monster?: string;
+    best?: number;
+    bestRun?: RunRecord | null;
+    runs?: number;
+  }): void {
+    const data = read();
+    if (cloud.monster) data.name = cleanName(cloud.monster);
+    if ((cloud.best ?? 0) > data.best) {
+      data.best = cloud.best ?? 0;
+      // Keep the record consistent: the stats must describe the best score.
+      if (cloud.bestRun) data.bestRun = cloud.bestRun;
+    }
+    if ((cloud.runs ?? 0) > data.runs) data.runs = cloud.runs ?? 0;
+    write(data);
+  },
+
   /**
    * Store a finished run. Returns true if it beat the previous best.
    * `dailyKey` records it against that day's challenge as well.
    */
-  recordRun(run: RunRecord, dailyKey: string | null): boolean {
+  recordRun(run: RunRecord, dailyKey: string | null, mode = "classic"): boolean {
     const data = read();
     data.runs++;
     if (dailyKey && run.score > (data.daily[dailyKey] ?? 0)) {
       data.daily[dailyKey] = run.score;
+    }
+    // A daily run belongs to the daily board, not to a mode's board.
+    if (!dailyKey && run.score > (data.modes[mode] ?? 0)) {
+      data.modes[mode] = run.score;
     }
     const isBest = run.score > data.best;
     if (isBest) {

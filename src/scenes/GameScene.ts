@@ -9,6 +9,7 @@ import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameStat
 import { Save } from "../systems/Save";
 import { Ev, ReplayEvent } from "../systems/Replay";
 import { MODS } from "../systems/Modifiers";
+import { ModeId } from "../systems/Modes";
 import { makeButton } from "../objects/Button";
 import { milestoneName, currentSize } from "../data/milestones";
 
@@ -79,9 +80,12 @@ export class GameScene extends Phaser.Scene {
 
   /** Set by the menu: a daily-challenge run shares its seed with everyone. */
   private dailyKey: string | null = null;
+  /** The permanent mode picked on the mode-select screen. */
+  private mode: ModeId = "classic";
 
-  init(data: { dailyKey?: string }): void {
+  init(data: { dailyKey?: string; mode?: ModeId }): void {
     this.dailyKey = data?.dailyKey ?? null;
+    this.mode = data?.mode ?? "classic";
   }
 
   create(): void {
@@ -100,7 +104,7 @@ export class GameScene extends Phaser.Scene {
     this.inputReady = false;
     this.time.delayedCall(150, () => (this.inputReady = true));
 
-    this.state = new GameState(this.dailyKey);
+    this.state = new GameState(this.dailyKey, undefined, this.mode);
 
     // Physics-only modifiers land on the world before anything spawns.
     const gravity = this.matter.world.localWorld.gravity;
@@ -934,6 +938,7 @@ export class GameScene extends Phaser.Scene {
       drops: this.state.totalDrops,
       biggestTier: this.state.biggestTier,
       dailyKey: this.state.dailyKey,
+      mode: this.state.mode,
       seed: this.state.seed,
       events: this.replayLog,
     });

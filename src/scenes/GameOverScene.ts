@@ -3,6 +3,7 @@ import { GAME, UI_FONT, TEXT_RES } from "../config";
 import { milestoneName } from "../data/milestones";
 import { GameOverReason } from "../systems/GameState";
 import { Save } from "../systems/Save";
+import { ModeId } from "../systems/Modes";
 import { makeButton } from "../objects/Button";
 import { tierTexture } from "../data/foods";
 import { Cloud } from "../systems/Cloud";
@@ -18,6 +19,8 @@ interface GameOverData {
   drops: number;
   biggestTier: number;
   dailyKey: string | null;
+  /** The permanent mode this run was played in. */
+  mode: ModeId;
   /** The run's RNG seed, so the server can replay a casual run too. */
   seed: number;
   events: ReplayEvent[];
@@ -38,7 +41,7 @@ export class GameOverScene extends Phaser.Scene {
       drops: data.drops,
       biggestTier: data.biggestTier,
     };
-    const isBest = Save.recordRun(run, data.dailyKey);
+    const isBest = Save.recordRun(run, data.dailyKey, data.mode);
 
     // The dimming overlay goes down FIRST so everything after it draws on top.
     // It used to be added late, which silently hid the sync status behind it —
@@ -76,7 +79,7 @@ export class GameOverScene extends Phaser.Scene {
       // EVERY run is submitted now, not just dailies: a casual run carries its
       // seed, so the server can replay it for the all-time board too.
       syncNote.setText("Posting to leaderboard…");
-      void Cloud.submitDaily(data.dailyKey, data.seed, run, data.events).then((r) => {
+      void Cloud.submitRun(data.dailyKey, data.mode, data.seed, run, data.events).then((r) => {
         if (r.ok && r.verified) {
           syncNote
             .setText(
@@ -210,7 +213,7 @@ export class GameOverScene extends Phaser.Scene {
         onClick: () => {
           this.scene.stop();
           this.scene.stop("Game");
-          this.scene.start("Game", data.dailyKey ? { dailyKey: data.dailyKey } : {});
+          this.scene.start("Game", data.dailyKey ? { dailyKey: data.dailyKey } : { mode: data.mode });
         },
       });
       makeButton(this, {

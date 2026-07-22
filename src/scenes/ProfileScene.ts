@@ -17,8 +17,25 @@ const FONT = UI_FONT;
  * notes in the project memory before wiring one up.
  */
 export class ProfileScene extends Phaser.Scene {
+  private bestValue!: Phaser.GameObjects.Text;
+
   constructor() {
     super("Profile");
+  }
+
+  /**
+   * Replace the device-local best with the account's, once it arrives.
+   *
+   * Deliberately async and non-blocking: the screen renders immediately from
+   * the local save and corrects itself a moment later, so a slow network never
+   * leaves the profile blank.
+   */
+  private async syncAccountBest(): Promise<void> {
+    await Cloud.ready;
+    await Cloud.pullProgress();
+    if (!this.scene.isActive()) return;
+    const best = Save.best;
+    this.bestValue.setText(best ? best.toLocaleString("en-US") : "—");
   }
 
   create() {
@@ -131,30 +148,45 @@ export class ProfileScene extends Phaser.Scene {
     const key = todayKey();
     const todayScore = Save.dailyBest(key);
     const statsY = panelY + (best ? 222 : 128);
-    const cols: [string, string][] = [
-      ["ALL-TIME BEST", Save.best ? Save.best.toLocaleString("en-US") : "—"],
-      ["TODAY'S DAILY", todayScore ? todayScore.toLocaleString("en-US") : "—"],
-    ];
-    cols.forEach(([label, value], i) => {
-      const cx = WIDTH / 2 + (i === 0 ? -78 : 78);
-      this.add
-        .text(cx, statsY, value, {
-          fontFamily: FONT,
+    this.bestValue = this.add
+      .text(WIDTH / 2 - 78, statsY, Save.best ? Save.best.toLocaleString("en-US") : "—", {
+        fontFamily: FONT,
         resolution: TEXT_RES,
-          fontSize: "22px",
-          fontStyle: "600",
-          color: "#ffd93d",
-        })
-        .setOrigin(0.5);
-      this.add
-        .text(cx, statsY + 24, label, {
-          fontFamily: FONT,
+        fontSize: "22px",
+        fontStyle: "600",
+        color: "#ffd93d",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(WIDTH / 2 - 78, statsY + 24, "ALL-TIME BEST", {
+        fontFamily: FONT,
         resolution: TEXT_RES,
-          fontSize: "10px",
-          color: "#c3c8f5",
-        })
-        .setOrigin(0.5);
-    });
+        fontSize: "10px",
+        color: "#c3c8f5",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(WIDTH / 2 + 78, statsY, todayScore ? todayScore.toLocaleString("en-US") : "—", {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "22px",
+        fontStyle: "600",
+        color: "#ffd93d",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(WIDTH / 2 + 78, statsY + 24, "TODAY'S DAILY", {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "10px",
+        color: "#c3c8f5",
+      })
+      .setOrigin(0.5);
+
+    // The local save is per-DEVICE, so showing it as "all-time best" made the
+    // same account read differently on a second device. When signed in, take
+    // the number from the account and fold it back into this device's save.
+    if (Cloud.signedIn) void this.syncAccountBest();
 
     this.add
       .text(

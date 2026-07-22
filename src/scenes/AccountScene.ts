@@ -249,6 +249,9 @@ export class AccountScene extends Phaser.Scene {
       }
     } else {
       result = await Cloud.signIn(mail, pw);
+      // Bring the account's progress down onto this device. Without this the
+      // profile would show whatever this particular device had played.
+      if (result.ok) await Cloud.pullProgress();
     }
 
     this.busy = false;

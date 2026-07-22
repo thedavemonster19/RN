@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient, Session } from "@supabase/supabase-js";
-import { RunRecord } from "./Save";
+import { RunRecord, Save } from "./Save";
 import { ReplayEvent, REPLAY_VERSION } from "./Replay";
+import { ModeId } from "./Modes";
 
 /**
  * Everything that talks to Supabase.
@@ -23,6 +24,14 @@ export interface LeaderboardRow {
   score: number;
   milestone: number;
   verified: boolean;
+}
+
+/** A signed-in player's own account-wide records, per mode. */
+export interface CloudBests {
+  /** Verified best per mode id. Missing modes simply have no run yet. */
+  byMode: Record<string, number>;
+  /** The best across every mode. */
+  overall: number;
 }
 
 export interface CloudProfile {
@@ -147,6 +156,25 @@ class CloudService {
     return data as CloudProfile;
   }
 
+  /**
+   * Pull the account's progress down onto this device and merge it in.
+   *
+   * Call this after signing in and on boot while signed in. Without it the
+   * sync is one-way (push only), which is exactly why a second device showed a
+   * different all-time best for the same account: it had nothing to push and
+   * never learned what the account already knew.
+   */
+  async pullProgress(): Promise<void> {
+    const profile = await this.fetchProfile();
+    if (!profile) return;
+    Save.mergeCloud({
+      monster: profile.monster,
+      best: profile.best_score,
+      bestRun: profile.best_run,
+      runs: profile.runs,
+    });
+  }
+
   /** Mirror local progress up. Only overwrites the best if this run beat it. */
   async pushProgress(
     monster: string,
@@ -171,8 +199,9 @@ class CloudService {
    * cannot write to daily_scores directly (RLS forbids it), so a tampered
    * score simply fails to reproduce and is rejected.
    */
-  async submitDaily(
+  async submitRun(
     dailyKey: string | null,
+    mode: ModeId,
     seed: number,
     run: RunRecord,
     events: ReplayEvent[]
@@ -183,6 +212,9 @@ class CloudService {
         // A casual run carries its seed instead of a date — it's just as
         // reproducible, which is what makes the all-time board verifiable.
         daily_key: dailyKey,
+        // The mode decides which modifiers the server replays the run under,
+        // and which board the result lands on.
+        mode,
         seed,
         score: run.score,
         events,
@@ -197,27 +229,44 @@ class CloudService {
     };
   }
 
-  /** All-time standings — every verified run, best per player. */
-  async allTimeLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
+  /**
+   * All-time standings for ONE mode — every verified run, best per player.
+   *
+   * Per mode rather than pooled: modes are not balanced against each other, so
+   * a single table would just rank whichever mode pays best.
+   */
+  async allTimeLeaderboard(mode: ModeId, limit = 50): Promise<LeaderboardRow[]> {
     if (!this.client) return [];
     const { data, error } = await this.client
       .from("all_time_leaderboard")
       .select("username, monster, score, milestone, verified")
+      .eq("mode", mode)
       .order("score", { ascending: false })
       .limit(limit);
     if (error || !data) return [];
     return data as LeaderboardRow[];
   }
 
-  /** This player's own verified all-time best, or 0. */
-  async myBest(): Promise<number> {
-    if (!this.client || !this.userId) return 0;
+  /**
+   * This player's verified bests, per mode.
+   *
+   * This is the number the profile must show. Reading it from the SERVER is
+   * the whole point: the local save is per-device, so a player signing in on a
+   * second device saw that device's history instead of their account's.
+   */
+  async myBests(): Promise<CloudBests> {
+    if (!this.client || !this.userId) return { byMode: {}, overall: 0 };
     const { data } = await this.client
       .from("best_scores")
-      .select("score")
-      .eq("user_id", this.userId)
-      .maybeSingle();
-    return data?.score ?? 0;
+      .select("mode, score")
+      .eq("user_id", this.userId);
+    const byMode: Record<string, number> = {};
+    let overall = 0;
+    for (const row of (data ?? []) as { mode: string; score: number }[]) {
+      byMode[row.mode] = row.score;
+      if (row.score > overall) overall = row.score;
+    }
+    return { byMode, overall };
   }
 
   async leaderboard(dailyKey: string, limit = 50): Promise<LeaderboardRow[]> {
