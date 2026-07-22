@@ -7,6 +7,14 @@ import { MAX_TIER, tierTexture } from "../data/foods";
 const FONT = UI_FONT;
 
 /**
+ * The bonus bar's strip, in the gap between the bin floor (470) and a
+ * fully-grown monster. The clearance is tighter than the monster's body
+ * suggests: its leaf sprout reaches ~485, not the 490 of BODY_HALF. Deliberately the full width of the bin so it
+ * reads as belonging to the play area rather than to the side panels.
+ */
+const HUD_BONUS = { x: 106, y: 472, w: 234, h: 9 } as const;
+
+/**
  * A HUD disc standing in for a food. Real discs range from 22px to 124px
  * across, which won't fit a side panel, so these are drawn on a squashed scale
  * that still reads bigger-tier-is-bigger. Colour is the food's type.
@@ -35,7 +43,6 @@ export class Hud {
   private bars: Phaser.GameObjects.Graphics;
 
   private wantDisc: Phaser.GameObjects.Image;
-  private wantLabel: Phaser.GameObjects.Text;
   private cravingDiscs: Phaser.GameObjects.Image[] = [];
   private dropDiscs: Phaser.GameObjects.Image[] = [];
   private chainDiscs: Phaser.GameObjects.Image[] = [];
@@ -52,7 +59,7 @@ export class Hud {
     // it, and the growth bar is a slim rule under both. One centred column
     // reads cleaner than the old score-right / label-left split.
     this.scoreText = scene.add
-      .text(GAME.WIDTH / 2, 16, "", {
+      .text(GAME.WIDTH / 2, 10, "", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "34px",
@@ -61,6 +68,8 @@ export class Hud {
       })
       .setOrigin(0.5, 0)
       .setDepth(depth);
+    // y=56 put this INSIDE the score's box: a 34px line renders ~44px tall, so
+    // the score occupied 10-54 and the caption was overlapping its descenders.
     this.sizeText = scene.add
       .text(GAME.WIDTH / 2, 56, "", {
         fontFamily: FONT,
@@ -97,17 +106,11 @@ export class Hud {
         resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
       .setOrigin(0.5)
       .setDepth(depth);
+    // No tier number stamped on it: the food's own artwork already says which
+    // one it is, and the chain along the bottom shows where that sits in the
+    // ladder. The digit was a third encoding of the same fact, printed over
+    // the art it was describing.
     this.wantDisc = scene.add.image(px, 140, "food1").setDepth(depth);
-    this.wantLabel = scene.add
-      .text(px, 140, "", {
-        fontFamily: FONT,
-        resolution: TEXT_RES,
-        fontSize: "13px",
-        fontStyle: "700",
-        color: "#141033",
-      })
-      .setOrigin(0.5)
-      .setDepth(depth + 1);
     scene.add
       .text(px, 180, "THEN", { fontFamily: FONT,
         resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
@@ -134,23 +137,39 @@ export class Hud {
         .setDepth(depth)
     );
 
+    // Label for the bonus strip, left of the bar rather than above it: the
+    // band between the bin floor and the monster is only ~16px tall.
+    scene.add
+      .text(HUD_BONUS.x - 8, HUD_BONUS.y + HUD_BONUS.h / 2, "BONUS", {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "10px",
+        fontStyle: "600",
+        color: "#c3c8f5",
+      })
+      .setOrigin(1, 0.5)
+      .setDepth(depth);
+
     // The food chain, tier 1 → 10 left to right along the bottom — the whole
     // merge ladder at a glance, with the currently craved tier lit up. Doubles
     // as the tutorial: you can read "what merges into what" without being told.
-    const chainY = GAME.HEIGHT - 20;
-    const chainLeft = 24;
+    const chainY = GAME.HEIGHT - 22;
+    const chainLeft = 26;
     const chainStep = (GAME.WIDTH - 76 - chainLeft) / (MAX_TIER - 1);
     this.chainDiscs = [];
     for (let t = 1; t <= MAX_TIER; t++) {
       const d = scene.add
         .image(chainLeft + (t - 1) * chainStep, chainY, tierTexture(t))
         .setDepth(depth);
-      const dia = 10 + t * 2; // display size only — real radii wouldn't fit
+      // Display size only — the real radii (11px to 128px) would never fit.
+      // Sized up from 10+2t: the ladder is the closest thing the game has to a
+      // tutorial, and at the old size it read as decoration.
+      const dia = 15 + t * 2.8;
       d.setDisplaySize(dia, dia);
       this.chainDiscs.push(d);
     }
     this.fedText = scene.add
-      .text(GAME.WIDTH / 2, GAME.HEIGHT - 46, "", {
+      .text(GAME.WIDTH / 2, GAME.HEIGHT - 54, "", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
@@ -170,7 +189,6 @@ export class Hud {
       s.totalFeeds === 1 ? "1 fed" : `${s.totalFeeds} fed`
     );
     paintDisc(this.wantDisc, s.craving);
-    this.wantLabel.setText(`${s.craving.tier}`);
     this.chainDiscs.forEach((d, i) => {
       const tier = i + 1;
       d.setTexture(tierTexture(tier));
@@ -205,15 +223,20 @@ export class Hud {
     g.fillStyle(COLORS.teal, 1);
     g.fillRoundedRect(bx, 74, Math.max(4, bw * s.growthProgress), 5, 2.5);
 
-    // Freshness: the little fuse under the craving. Full = full bonus; it
-    // burns down as you take drops, and empty just means base pay.
-    const px = GAME.WIDTH - 30;
+    // Bonus (freshness): full = full bonus, and it burns down as you take
+    // drops. It used to be a 40x5px sliver tucked inside the 52px-wide WANTS
+    // column, which is why it was easy to miss entirely. It now gets its own
+    // strip in the gap between the bin floor and the monster — the widest
+    // empty band on the screen, and directly in the path between the food and
+    // the mouth, which is where you are already looking.
     const f = s.freshness;
-    g.fillStyle(0xffffff, 0.2);
-    g.fillRoundedRect(px - 20, 166, 40, 5, 2);
+    const fx = HUD_BONUS.x;
+    const fw = HUD_BONUS.w;
+    g.fillStyle(0xffffff, 0.18);
+    g.fillRoundedRect(fx, HUD_BONUS.y, fw, HUD_BONUS.h, HUD_BONUS.h / 2);
     if (f > 0) {
       g.fillStyle(f > 0.6 ? COLORS.teal : f > 0.25 ? COLORS.amber : COLORS.coral, 1);
-      g.fillRoundedRect(px - 20, 166, Math.max(3, 40 * f), 5, 2);
+      g.fillRoundedRect(fx, HUD_BONUS.y, Math.max(HUD_BONUS.h, fw * f), HUD_BONUS.h, HUD_BONUS.h / 2);
     }
   }
 }

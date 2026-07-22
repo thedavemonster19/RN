@@ -7,30 +7,30 @@ import { GameScene } from "./GameScene";
 
 const FONT = UI_FONT;
 
-/** Row geometry. Nine modes have to fit between the title and the Back button
- *  on a 720px-tall screen, so rows are compact and tightly packed. */
-const ROW_TOP = 128;
-const ROW_H = 54;
-const ROW_GAP = 4;
-
 /**
- * Pick a permanent mode before starting a run.
+ * Pick a permanent mode before starting a run — ONE mode on screen at a time,
+ * stepped with the arrows.
  *
- * Every mode is one of the daily challenge's modifiers made permanent, plus
- * Classic. Each has its own leaderboard — see the note in systems/Modes about
- * why they are not pooled.
+ * A list of all nine was tried first and read as a wall: nine cards of equal
+ * weight, none of which looked like the thing you were supposed to pick. A
+ * single card gives the mode room for its name, its twist and your best score,
+ * and makes Classic the obvious default simply by being what you land on.
  *
- * The whole row is the tap target rather than a small button on it: these are
- * list items on a phone, and a 54px-tall row is a comfortable thumb target
- * where a 24px button would not be.
+ * Classic is always index 0, so the screen opens on the plain game.
  */
 export class ModeSelectScene extends Phaser.Scene {
+  private index = 0;
+  /** Everything that changes when you step modes, cleared and redrawn. */
+  private cardBits: Phaser.GameObjects.GameObject[] = [];
+
   constructor() {
     super("ModeSelect");
   }
 
   create() {
     const { WIDTH, HEIGHT } = GAME;
+    this.index = 0;
+    this.cardBits = [];
 
     const g = this.add.graphics();
     g.fillGradientStyle(
@@ -43,7 +43,7 @@ export class ModeSelectScene extends Phaser.Scene {
     g.fillRect(0, 0, WIDTH, HEIGHT);
 
     this.add
-      .text(WIDTH / 2, 62, "Choose a mode", {
+      .text(WIDTH / 2, 76, "Choose a mode", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "26px",
@@ -52,7 +52,7 @@ export class ModeSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(WIDTH / 2, 92, "Each mode keeps its own leaderboard", {
+      .text(WIDTH / 2, 106, "Each mode keeps its own leaderboard", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
@@ -60,74 +60,139 @@ export class ModeSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    MODES.forEach((mode, i) => this.drawRow(mode.id, i));
+    // Arrows sit outside the card and never move, so stepping feels like the
+    // card changing rather than the whole screen redrawing.
+    this.arrow(34, -1, "‹");
+    this.arrow(WIDTH - 34, 1, "›");
 
     makeButton(this, {
       x: WIDTH / 2,
-      y: HEIGHT - 46,
+      y: HEIGHT - 150,
+      label: "Play",
+      primary: true,
+      onClick: () => this.start(MODES[this.index].id),
+    });
+    makeButton(this, {
+      x: WIDTH / 2,
+      y: HEIGHT - 84,
       label: "Back",
       onClick: () => this.scene.start("Menu"),
     });
+
+    this.drawCard();
   }
 
-  private drawRow(id: ModeId, index: number): void {
-    const { WIDTH } = GAME;
-    const mode = MODES[index];
-    const y = ROW_TOP + index * (ROW_H + ROW_GAP);
-    const left = 26;
-    const w = WIDTH - 52;
-
-    const card = this.add.graphics();
-    const paint = (hover: boolean) => {
-      card.clear();
-      card.fillStyle(COLORS.cardFill, 1);
-      card.fillRoundedRect(left, y, w, ROW_H, 14);
-      card.fillStyle(0xffffff, hover ? 0.14 : 0.07);
-      card.fillRoundedRect(left + 3, y + 2, w - 6, ROW_H * 0.45, 11);
-      card.lineStyle(2, COLORS.violet, hover ? 0.9 : 0.45);
-      card.strokeRoundedRect(left, y, w, ROW_H, 14);
-    };
-    paint(false);
-
+  private arrow(x: number, dir: number, glyph: string): void {
+    const y = 300;
+    const hit = this.add
+      .circle(x, y, 24, 0xffffff, 0.1)
+      .setStrokeStyle(2, COLORS.violet, 0.6)
+      .setInteractive({ useHandCursor: true });
+    hit.on("pointerover", () => hit.setFillStyle(0xffffff, 0.2));
+    hit.on("pointerout", () => hit.setFillStyle(0xffffff, 0.1));
+    hit.on("pointerdown", () => this.step(dir));
     this.add
-      .text(left + 16, y + 17, mode.name, {
+      .text(x, y - 2, glyph, {
         fontFamily: FONT,
         resolution: TEXT_RES,
-        fontSize: "16px",
+        fontSize: "26px",
         fontStyle: "600",
         color: "#ffffff",
       })
-      .setOrigin(0, 0.5);
-    this.add
-      .text(left + 16, y + 37, mode.desc, {
-        fontFamily: FONT,
-        resolution: TEXT_RES,
-        fontSize: "11px",
-        color: "#c3c8f5",
-        wordWrap: { width: w - 96 },
-      })
-      .setOrigin(0, 0.5);
+      .setOrigin(0.5);
+  }
 
-    // This device's best in the mode, so the list shows progress at a glance.
-    const best = Save.modeBest(id);
-    if (best > 0) {
+  private step(dir: number): void {
+    this.index = (this.index + dir + MODES.length) % MODES.length;
+    this.drawCard();
+  }
+
+  private drawCard(): void {
+    const { WIDTH } = GAME;
+    this.cardBits.forEach((o) => o.destroy());
+    this.cardBits = [];
+
+    const mode = MODES[this.index];
+    const left = 74;
+    const w = WIDTH - 148;
+    const top = 176;
+    const h = 248;
+
+    const card = this.add.graphics();
+    card.fillStyle(0x06081a, 0.3);
+    card.fillRoundedRect(left, top + 4, w, h, 20);
+    card.fillStyle(COLORS.cardFill, 1);
+    card.fillRoundedRect(left, top, w, h, 20);
+    card.fillStyle(0xffffff, 0.09);
+    card.fillRoundedRect(left + 4, top + 3, w - 8, h * 0.4, 17);
+    card.lineStyle(2, COLORS.violet, 0.7);
+    card.strokeRoundedRect(left, top, w, h, 20);
+    this.cardBits.push(card);
+
+    this.cardBits.push(
       this.add
-        .text(left + w - 14, y + ROW_H / 2, best.toLocaleString("en-US"), {
+        .text(WIDTH / 2, top + 52, mode.name, {
+          fontFamily: FONT,
+          resolution: TEXT_RES,
+          fontSize: "22px",
+          fontStyle: "600",
+          color: "#ffffff",
+          align: "center",
+          wordWrap: { width: w - 32 },
+        })
+        .setOrigin(0.5)
+    );
+    this.cardBits.push(
+      this.add
+        .text(WIDTH / 2, top + 116, mode.desc, {
           fontFamily: FONT,
           resolution: TEXT_RES,
           fontSize: "13px",
+          color: "#dfe3ff",
+          align: "center",
+          lineSpacing: 5,
+          wordWrap: { width: w - 44 },
+        })
+        .setOrigin(0.5)
+    );
+
+    const best = Save.modeBest(mode.id);
+    this.cardBits.push(
+      this.add
+        .text(WIDTH / 2, top + 186, best > 0 ? best.toLocaleString("en-US") : "—", {
+          fontFamily: FONT,
+          resolution: TEXT_RES,
+          fontSize: "26px",
           fontStyle: "600",
           color: "#ffd93d",
         })
-        .setOrigin(1, 0.5);
-    }
+        .setOrigin(0.5)
+    );
+    this.cardBits.push(
+      this.add
+        .text(WIDTH / 2, top + 212, "YOUR BEST", {
+          fontFamily: FONT,
+          resolution: TEXT_RES,
+          fontSize: "10px",
+          color: "#c3c8f5",
+        })
+        .setOrigin(0.5)
+    );
 
-    const zone = this.add
-      .zone(left + w / 2, y + ROW_H / 2, w, ROW_H)
-      .setInteractive({ useHandCursor: true });
-    zone.on("pointerover", () => paint(true));
-    zone.on("pointerout", () => paint(false));
-    zone.on("pointerdown", () => this.start(id));
+    // Position dots: which of the nine you're on, without a scrollbar.
+    const dotY = top + h + 30;
+    const spacing = 18;
+    const startX = WIDTH / 2 - ((MODES.length - 1) * spacing) / 2;
+    MODES.forEach((_, i) => {
+      const dot = this.add.circle(
+        startX + i * spacing,
+        dotY,
+        i === this.index ? 5 : 3.5,
+        i === this.index ? COLORS.teal : 0xffffff,
+        i === this.index ? 1 : 0.32
+      );
+      this.cardBits.push(dot);
+    });
   }
 
   private start(mode: ModeId): void {
