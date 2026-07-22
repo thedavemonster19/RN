@@ -56,8 +56,9 @@ const MERGE_SLACK = 3;
  * radius to full size. A full-size body materialising inside a packed pile is
  * deeply overlapped with its neighbours, and Matter resolves deep overlap by
  * ejecting bodies — the "balls exploding upwards". Inflating pushes the
- * neighbours aside gradually instead. The sprite is full-size immediately;
- * only the collider grows.
+ * neighbours aside gradually instead. The SPRITE inflates in lockstep with the
+ * collider (see growTo) — it used to appear full-size at once, which is what
+ * made a merging pile look like it was compressing into itself.
  */
 const GROW_FRAMES = 8;
 const GROW_START = 0.55;
@@ -100,6 +101,14 @@ export class FoodPile {
   /** Fired when two foods merge into the next tier up. */
   onMerge?: (x: number, y: number, type: FoodType, tier: number) => void;
 
+  /**
+   * Extra restitution, for modes that want springy food (Low Gravity).
+   * Zero everywhere else: a bin full of small hops is what "janky" looked
+   * like, so bounce is opt-in per mode rather than a global default.
+   * Applies from the next collider rebuild, which every food gets on spawn.
+   */
+  bounce = 0;
+
   /** Bound so it can be removed again when the scene shuts down. */
   private readonly onAfterStep = () => this.clampSpeeds();
   /**
@@ -141,13 +150,14 @@ export class FoodPile {
       // which is a real technique for lining up merges. Low friction lets them
       // roll and transmit a shove.
       //
-      // Liveliness now comes from the low friction alone, not from bounce.
-      // Zero, not a whisper. Even 0.06 meant every landing ended in a small
+      // Liveliness comes from the low friction, not from bounce. Zero by
+      // default, not a whisper: even 0.06 meant every landing ended in a small
       // hop, and a bin full of small hops is exactly the "janky" read — food
       // that never quite commits to being at rest. Measured: dropping it to 0
       // cut the merge-time upward pop from 0.40 to 0.11px/frame and let the
-      // pile settle in 27 frames instead of 38.
-      restitution: 0,
+      // pile settle in 27 frames instead of 38. `bounce` lets one mode opt back
+      // in on purpose.
+      restitution: this.bounce,
       // Measured: at 0.4/0.7 (the old sandbag values) a dropped ball barely
       // moved its neighbour. At 0.06 it shoved it ~110px, clean across the bin
       // into the wall, which made stacking impossible. 0.12 lands at ~59px —
@@ -174,6 +184,27 @@ export class FoodPile {
     (mo.body as MatterJS.BodyType).sleepThreshold = 18;
   }
 
+  /**
+   * Set a growing food to `k` of its final size — SPRITE and collider together.
+   *
+   * The sprite used to appear at full size the instant a merge happened while
+   * the collider inflated over the following frames. That is what read as the
+   * pile "compressing": for those frames the new food visibly overlapped its
+   * neighbours, then shoved them apart as the collider caught up, and with
+   * merges cascading it never stopped.
+   *
+   * The order below is the whole trick, and it is not obvious. Scaling a Matter
+   * image scales its body too — measured, setScale(0.55) on a 46px collider
+   * left a 25.3px one. But setCircle afterwards REPLACES the body at exactly
+   * the radius asked for and does not re-apply the sprite's scale: measured,
+   * the collider came back to 46 while the sprite stayed at 0.55. So scale
+   * first, build the collider second, and the two are independent.
+   */
+  private growTo(f: Food, k: number): void {
+    f.mo.setScale(k);
+    this.setBody(f.mo, f.radius * k);
+  }
+
   spawn(
     x: number,
     y: number,
@@ -186,6 +217,9 @@ export class FoodPile {
     // (scaling a Matter image shrinks its body). setCircle gives the body a
     // collider that matches the visual exactly.
     const mo = this.scene.matter.add.image(x, y, tierTexture(tier));
+    // Scale BEFORE building the collider — see growTo for why that order is
+    // what keeps the sprite and the body independent.
+    if (growIn) mo.setScale(GROW_START);
     this.setBody(mo, growIn ? radius * GROW_START : radius);
     mo.setDepth(5);
     const food: Food = {
@@ -223,7 +257,7 @@ export class FoodPile {
       if (f.growing <= 0) continue;
       f.growing--;
       const t = 1 - f.growing / GROW_FRAMES;
-      this.setBody(f.mo, f.radius * (GROW_START + (1 - GROW_START) * t));
+      this.growTo(f, GROW_START + (1 - GROW_START) * t);
     }
 
     for (let i = 0; i < this.items.length; i++) {

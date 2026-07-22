@@ -78,7 +78,10 @@ export function openNameEntry(
   el.select();
 
   let cancel: Button | undefined;
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
     shade.destroy();
     panel.destroy();
     title.destroy();
@@ -87,6 +90,15 @@ export function openNameEntry(
     save.destroy();
     cancel?.destroy();
   };
+
+  // Also tear down if the scene goes away with the prompt still open. The
+  // field is a real DOM element sitting over the canvas, not a game object, so
+  // an orphaned one keeps floating above whatever screen comes next — it was
+  // seen hovering over the leaderboard rows. The interactive backdrop means a
+  // player cannot normally leave the prompt open, but "cannot normally" is not
+  // a guarantee, and the cost of being sure is one listener.
+  scene.events.once("shutdown", cleanup);
+  scene.events.once("destroy", cleanup);
 
   const commit = () => {
     // An empty field takes the placeholder, so a monster is never nameless.

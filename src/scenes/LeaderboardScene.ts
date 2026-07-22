@@ -226,9 +226,15 @@ export class LeaderboardScene extends Phaser.Scene {
 
   private renderRows(rows: LeaderboardRow[]): void {
     const { WIDTH } = GAME;
-    const top = 186;
+    // The all-time tab carries a mode picker at y=190 (arrows reach 208), so
+    // rows have to start below it. They used to start at 186 and sat straight
+    // on top of it — invisible while the board was empty, obvious the moment
+    // there were real scores to draw.
+    const top = this.tab === "all" ? 226 : 190;
     const me = Save.name;
-    rows.slice(0, 12).forEach((row, i) => {
+    // 11 rows, not 12: the last row must stay clear of the Back button at
+    // HEIGHT-74, and the all-time tab starts 36px lower.
+    rows.slice(0, 11).forEach((row, i) => {
       const y = top + i * 34;
       const mine = row.monster === me;
       const bg = this.add.graphics();

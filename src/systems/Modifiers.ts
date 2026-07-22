@@ -49,8 +49,8 @@ export const MODS: Record<ModId, ModDef> = {
   },
   floaty: {
     id: "floaty",
-    name: "Low Gravity",
-    desc: "Food drifts down slow and light.",
+    name: "Moon Bounce",
+    desc: "Food falls slow and springy — it bounces before it settles.",
     economy: false,
   },
   feast: {
@@ -68,7 +68,7 @@ export const MODS: Record<ModId, ModDef> = {
   windy: {
     id: "windy",
     name: "Windy",
-    desc: "A breeze pushes food across the bin.",
+    desc: "A gusting crosswind pushes falling food off your aim.",
     economy: false,
   },
   rush: {
@@ -80,7 +80,7 @@ export const MODS: Record<ModId, ModDef> = {
   bigdrops: {
     id: "bigdrops",
     name: "Heavy Rain",
-    desc: "The food you drop starts bigger.",
+    desc: "Big food, falling hard and fast. No small chaff to tidy up with.",
     economy: true,
   },
 };

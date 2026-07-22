@@ -78,6 +78,10 @@ export class GameScene extends Phaser.Scene {
     super("Game");
   }
 
+  /** Streak field for the Windy mode, drawn behind the food. */
+  private windGfx?: Phaser.GameObjects.Graphics;
+  private windStreaks: { x: number; t: number; speed: number; thick: number }[] = [];
+
   /** Set by the menu: a daily-challenge run shares its seed with everyone. */
   private dailyKey: string | null = null;
   /** The permanent mode picked on the mode-select screen. */
@@ -109,7 +113,14 @@ export class GameScene extends Phaser.Scene {
     // Physics-only modifiers land on the world before anything spawns.
     const gravity = this.matter.world.localWorld.gravity;
     if (gravity) {
-      gravity.scale = this.state.has("floaty") ? GRAVITY_SCALE * 0.5 : GRAVITY_SCALE;
+      // Moon Bounce halves gravity; Heavy Rain does the opposite, so the big
+      // food it hands you lands with real weight instead of merely being large.
+      const g = this.state.has("floaty")
+        ? GRAVITY_SCALE * 0.5
+        : this.state.has("bigdrops")
+          ? GRAVITY_SCALE * 1.7
+          : GRAVITY_SCALE;
+      gravity.scale = g;
       gravity.x = 0; // wind is applied per-frame in update()
     }
 
@@ -119,7 +130,24 @@ export class GameScene extends Phaser.Scene {
 
     this.dangerGfx = this.add.graphics().setDepth(0);
     this.drawBin();
+    if (this.state.has("windy")) {
+      this.windGfx = this.add.graphics().setDepth(1);
+      this.windStreaks = Array.from({ length: 22 }, (_, i) => ({
+        x: BIN.left + ((i * 71) % (BIN.right - BIN.left)),
+        t: ((i * 37) % 100) / 100,
+        speed: 0.6 + ((i * 13) % 10) / 10,
+        thick: 1 + ((i * 7) % 3) * 0.6,
+      }));
+    } else {
+      this.windGfx = undefined;
+      this.windStreaks = [];
+    }
+
     this.pile = new FoodPile(this);
+    // Springy food is the POINT of Moon Bounce: half gravity on its own just
+    // read as "slow", which is why it was the least distinctive twist. Set
+    // after the pile exists — setting it before threw on the first run.
+    this.pile.bounce = this.state.has("floaty") ? 0.52 : 0;
     this.monster = new Monster(this, MONSTER.x, MONSTER.y);
     this.monster.setName(Save.name);
     this.monster.setSize(currentSize(this.state.milestone));
@@ -540,7 +568,9 @@ export class GameScene extends Phaser.Scene {
     if (this.state.has("windy")) {
       // A slow, reversing breeze — enough to drift food, not to fling it.
       const gravity = this.matter.world.localWorld.gravity;
-      if (gravity) gravity.x = 0.4 * Math.sin(time / 2200);
+      const wind = 0.4 * Math.sin(time / 2200);
+      if (gravity) gravity.x = wind;
+      this.drawWind(wind);
     }
   }
 
@@ -567,7 +597,7 @@ export class GameScene extends Phaser.Scene {
     const parts: Phaser.GameObjects.GameObject[] = [card];
     parts.push(
       this.add
-        .text(cx, cy - h / 2 + 20, "TODAY'S TWIST", {
+        .text(cx, cy - h / 2 + 20, this.dailyKey ? "TODAY'S TWIST" : "GAME MODE", {
           fontFamily: FONT,
           resolution: TEXT_RES,
           fontSize: "11px",
@@ -955,6 +985,48 @@ export class GameScene extends Phaser.Scene {
       1
     );
     g.fillRect(0, 0, GAME.WIDTH, GAME.HEIGHT);
+  }
+
+  /**
+   * Draw the wind so it reads as wind.
+   *
+   * Without this the mode looked like the food had simply gone unpredictable —
+   * the force was invisible, so a drop drifting off your aim looked like a bug
+   * rather than the twist. Streaks travel WITH the current force and their
+   * length and opacity track its strength, so you can see a gust build, slack
+   * off and reverse, and time a drop against it.
+   */
+  private drawWind(wind: number): void {
+    if (!this.windGfx) return;
+    const g = this.windGfx;
+    g.clear();
+    const strength = Math.abs(wind) / 0.4;
+    if (strength < 0.06) return; // dead calm: draw nothing rather than a hint
+
+    const dir = Math.sign(wind);
+    const top = this.lineY();
+    const span = BIN.floor - top;
+    for (const st of this.windStreaks) {
+      // Advance with the wind; wrap round so the field never empties.
+      st.x += wind * st.speed;
+      const w = BIN.right - BIN.left;
+      if (st.x > BIN.right + 40) st.x -= w + 80;
+      if (st.x < BIN.left - 40) st.x += w + 80;
+      const y = top + st.t * span;
+      if (y < top || y > BIN.floor) continue;
+      const len = 10 + strength * 26 * st.speed;
+      // Clip to the bin. Streaks wrap 40px beyond each wall so the field never
+      // thins out at the edges, but drawing them out there put wind marks on
+      // the background either side of the bin, where there is no air.
+      const x1 = Math.max(BIN.left + 2, Math.min(BIN.right - 2, st.x - (len / 2) * dir));
+      const x2 = Math.max(BIN.left + 2, Math.min(BIN.right - 2, st.x + (len / 2) * dir));
+      if (Math.abs(x2 - x1) < 3) continue;
+      g.lineStyle(st.thick, 0xffffff, 0.05 + strength * 0.16);
+      g.beginPath();
+      g.moveTo(x1, y);
+      g.lineTo(x2, y);
+      g.strokePath();
+    }
   }
 
   private createBinWalls(): void {
