@@ -9,48 +9,85 @@ export const GAME = {
 } as const;
 
 /**
- * The UI typeface. `ui-rounded` is a CSS generic that resolves to SF Pro
- * Rounded on Apple devices — soft and friendly, matching the monster, and it
- * costs nothing because it ships with the OS (no webfont to download, which
- * matters for a single-file build). Everything after it is a graceful fallback.
+ * How many device pixels to render each game pixel into.
+ *
+ * The game is authored in a 400x720 world and used to be rendered into a canvas
+ * of exactly that size, then stretched to fill the screen — measured, every
+ * game pixel was smeared across 2 device pixels here and 3 on a phone. That is
+ * why the whole thing read as soft: not a font problem, a resolution one, and
+ * no amount of text tuning could have fixed the artwork and shapes too.
+ *
+ * The canvas is now RENDER_SCALE times bigger and every camera is zoomed by the
+ * same factor, so world coordinates stay 400x720 and no layout constant moves.
+ * Capped at 3 — beyond that it is fill rate spent on detail no screen resolves.
+ */
+export const RENDER_SCALE = Math.min(
+  Math.max(typeof window === "undefined" ? 1 : window.devicePixelRatio || 1, 1),
+  3
+);
+
+/**
+ * The UI typeface — Fredoka, embedded as a WOFF2 (see data/uiFont).
+ *
+ * The game used to borrow the OS rounded face, which is clean but generic and
+ * looked like a system UI rather than a sweet shop. Fredoka is rounded and
+ * chunky enough to belong with the pastries while staying readable at the 10px
+ * labels this HUD is full of — the reason a heavier bakery script was not used.
+ *
+ * The system stack stays behind it so the game still renders if the embedded
+ * face fails to decode.
  */
 export const UI_FONT =
-  'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Varela Round", system-ui, -apple-system, sans-serif';
+  'Fredoka, ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Varela Round", system-ui, -apple-system, sans-serif';
+
+/** Glyph textures are rendered at this multiple. It must match RENDER_SCALE:
+ *  lower and text is upscaled into the sharper canvas, higher is wasted memory. */
+export const TEXT_RES = RENDER_SCALE;
 
 /**
- * Text is rendered at this multiple of its on-screen size, then scaled down.
+ * A warm bakery palette: cream paper, warm brown ink.
  *
- * The game canvas is a fixed 400x720 that the browser then stretches to fill
- * the screen — on a phone with a 2-3x pixel ratio that's a big upscale, and
- * text rasterised at 1x came out soft and blurry. Rendering glyphs at 3x and
- * letting them scale down keeps them sharp on any display.
- */
-export const TEXT_RES = 3;
-
-/**
- * Bright, saturated palette. The old one was a muted navy that made everything
- * read as washed out and, frankly, dull. This keeps a dark base — the food
- * discs are vivid and need something to pop against — but pushes it to a
- * saturated violet-indigo and brightens every accent, so the UI feels lit
- * rather than grey.
+ * The game was violet-on-near-black, which fought the food. The pastries are
+ * warm pinks, golds and creams, and they read as objects sitting ON something
+ * rather than glowing in the dark once the page behind them is warm too.
  *
- * Panels sit at higher alpha too (see PANEL_*), which is what turns them from
- * faint smudges into actual cards.
+ * Deliberately cream and honey rather than white: white is both clinical and,
+ * at this size, glaring on a phone at night.
+ *
+ * INVERTED FROM THE OLD SCHEME, which is the thing to remember when adding UI.
+ * `text` is now dark and panels are drawn with `ink` at low alpha; anything
+ * still painting white-on-dark will vanish into the page.
  */
 export const COLORS = {
-  bgTop: 0x4c3fd6,
-  bgBottom: 0x1b1352,
-  screen: 0x140d3d,
-  text: 0xffffff,
-  textMuted: 0xc3c8f5,
-  teal: 0x2ff0d6,
-  tealDeep: 0x14b39a,
-  amber: 0xffc93c,
-  coral: 0xff6fa5,
-  danger: 0xff4d6d,
-  gold: 0xffd93d,
-  violet: 0xa78bfa,
-  cardFill: 0x2f2585,
+  bgTop: 0xfff4da,
+  bgBottom: 0xffdda6,
+  screen: 0xfff4da,
+  text: 0x4a3327,
+  textMuted: 0x9b7a5f,
+  teal: 0x17b39b,
+  tealDeep: 0x0e8f7c,
+  amber: 0xe89a1c,
+  coral: 0xf2688f,
+  danger: 0xd94860,
+  gold: 0xd98324,
+  /** Was a violet border accent; now the warm tan that edges cards. */
+  violet: 0xd0a066,
+  cardFill: 0xffe7bd,
+  /**
+   * The colour every panel fill, rule and outline is drawn in, at low alpha.
+   * On the old dark scheme that role was played by plain white — which on
+   * cream is invisible, so it is now a named warm brown instead of a literal
+   * scattered through nine files.
+   */
+  ink: 0x6b4a33,
+  /**
+   * Full-screen wash behind a modal. LIGHT, not dark: on the old scheme this
+   * was near-black at 0.9, and simply warming it turned every dialog into a
+   * muddy brown pane with dark text sitting unreadably on top. A light theme
+   * dims by washing OUT, and the modal card reads because it is a deeper
+   * honey than the wash, not because the page behind it went black.
+   */
+  scrim: 0xfff0cc,
 } as const;
 
 /** Standard card/panel fills, bright enough to read as surfaces. */

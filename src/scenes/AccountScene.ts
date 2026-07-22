@@ -42,7 +42,7 @@ export class AccountScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#ffb35c",
+        color: "#c2670f",
         align: "center",
         wordWrap: { width: WIDTH - 80 },
       })
@@ -55,7 +55,7 @@ export class AccountScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "28px",
           fontStyle: "600",
-          color: "#ffffff",
+          color: "#4a3327",
         })
         .setOrigin(0.5);
       this.add
@@ -67,7 +67,7 @@ export class AccountScene extends Phaser.Scene {
             fontFamily: FONT,
         resolution: TEXT_RES,
             fontSize: "14px",
-            color: "#c3c8f5",
+            color: "#9b7a5f",
             align: "center",
             lineSpacing: 6,
           }
@@ -100,7 +100,7 @@ export class AccountScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5)
       .setDepth(5);
@@ -111,7 +111,7 @@ export class AccountScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: "#c3c8f5",
+          color: "#9b7a5f",
           align: "center",
           lineSpacing: 6,
         })
@@ -219,14 +219,14 @@ export class AccountScene extends Phaser.Scene {
     }
 
     this.busy = true;
-    this.message.setColor("#c3c8f5").setText("Working…");
+    this.message.setColor("#9b7a5f").setText("Working…");
 
     let result: { ok: boolean; error?: string };
     if (this.mode === "up") {
       const username = cleanName(user?.value ?? "");
       if (username.length < 2) {
         this.busy = false;
-        this.message.setColor("#ffb35c").setText("Pick a username (2+ characters).");
+        this.message.setColor("#c2670f").setText("Pick a username (2+ characters).");
         return;
       }
       const signUp = await Cloud.signUp(mail, pw, username);
@@ -236,7 +236,7 @@ export class AccountScene extends Phaser.Scene {
         // instructions rather than pretending they're signed in.
         this.busy = false;
         this.message
-          .setColor("#2ff0d6")
+          .setColor("#0e9d88")
           .setText(
             `Account created. Check ${mail} for a confirmation link, then sign in.`
           );
@@ -256,7 +256,7 @@ export class AccountScene extends Phaser.Scene {
 
     this.busy = false;
     if (!result.ok) {
-      this.message.setColor("#ffb35c").setText(result.error ?? "Something went wrong.");
+      this.message.setColor("#c2670f").setText(result.error ?? "Something went wrong.");
       return;
     }
     this.scene.start("Menu");

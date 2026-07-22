@@ -56,7 +56,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
-        color: "#ffd93d",
+        color: "#d98324",
       })
       .setOrigin(0.5, 0);
     this.bestLabel = this.add
@@ -64,7 +64,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5, 0);
 
@@ -74,7 +74,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "500",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
 
@@ -149,7 +149,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(5);
@@ -174,7 +174,7 @@ export class MenuScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "24px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
     this.add
@@ -182,7 +182,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#a6adde",
+        color: "#ab8d74",
       })
       .setOrigin(0.5);
 

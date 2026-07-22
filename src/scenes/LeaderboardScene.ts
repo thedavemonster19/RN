@@ -58,7 +58,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
     this.subtitle = this.add
@@ -66,7 +66,7 @@ export class LeaderboardScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
         align: "center",
         lineSpacing: 3,
       })
@@ -77,7 +77,7 @@ export class LeaderboardScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "13px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
         align: "center",
         lineSpacing: 6,
         wordWrap: { width: WIDTH - 80 },
@@ -152,7 +152,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "600",
-        color: "#2ff0d6",
+        color: "#0e9d88",
       })
       .setOrigin(0.5);
     this.modeUi.push(label);
@@ -162,8 +162,8 @@ export class LeaderboardScene extends Phaser.Scene {
       [118, 1, "›"],
     ] as [number, number, string][]) {
       const hit = this.add
-        .circle(WIDTH / 2 + dx, y, 18, 0xffffff, 0.1)
-        .setStrokeStyle(1, 0xffffff, 0.28)
+        .circle(WIDTH / 2 + dx, y, 18, COLORS.ink, 0.1)
+        .setStrokeStyle(1, COLORS.ink, 0.28)
         .setInteractive({ useHandCursor: true });
       hit.on("pointerdown", () => step(dir));
       const txt = this.add
@@ -172,7 +172,7 @@ export class LeaderboardScene extends Phaser.Scene {
           resolution: TEXT_RES,
           fontSize: "20px",
           fontStyle: "600",
-          color: "#ffffff",
+          color: "#4a3327",
         })
         .setOrigin(0.5);
       this.modeUi.push(hit, txt);
@@ -238,7 +238,7 @@ export class LeaderboardScene extends Phaser.Scene {
       const y = top + i * 34;
       const mine = row.monster === me;
       const bg = this.add.graphics();
-      bg.fillStyle(0xffffff, mine ? 0.1 : i % 2 === 0 ? 0.04 : 0);
+      bg.fillStyle(COLORS.ink, mine ? 0.1 : i % 2 === 0 ? 0.04 : 0);
       bg.fillRoundedRect(30, y - 14, WIDTH - 60, 28, 8);
       this.rowObjects.push(bg);
 
@@ -248,7 +248,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
-          color: i < 3 ? "#ffd93d" : "#c3c8f5",
+          color: i < 3 ? "#d98324" : "#9b7a5f",
         })
         .setOrigin(0, 0.5);
       const name = this.add
@@ -256,7 +256,7 @@ export class LeaderboardScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: mine ? "#2ff0d6" : "#ffffff",
+          color: mine ? "#0e9d88" : "#4a3327",
         })
         .setOrigin(0, 0.5);
       const score = this.add
@@ -265,7 +265,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "14px",
           fontStyle: "600",
-          color: "#ffffff",
+          color: "#4a3327",
         })
         .setOrigin(1, 0.5);
       this.rowObjects.push(rank, name, score);
@@ -277,7 +277,7 @@ export class LeaderboardScene extends Phaser.Scene {
         top + Math.min(rows.length, 12) * 34 + 18,
         "Every score replayed and verified on the server.",
         { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#a6adde" }
+        resolution: TEXT_RES, fontSize: "10px", color: "#ab8d74" }
       )
       .setOrigin(0.5);
   }

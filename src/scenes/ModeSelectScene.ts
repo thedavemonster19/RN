@@ -48,7 +48,7 @@ export class ModeSelectScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
     this.add
@@ -56,7 +56,7 @@ export class ModeSelectScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5);
 
@@ -85,11 +85,11 @@ export class ModeSelectScene extends Phaser.Scene {
   private arrow(x: number, dir: number, glyph: string): void {
     const y = 300;
     const hit = this.add
-      .circle(x, y, 24, 0xffffff, 0.1)
+      .circle(x, y, 24, COLORS.ink, 0.1)
       .setStrokeStyle(2, COLORS.violet, 0.6)
       .setInteractive({ useHandCursor: true });
-    hit.on("pointerover", () => hit.setFillStyle(0xffffff, 0.2));
-    hit.on("pointerout", () => hit.setFillStyle(0xffffff, 0.1));
+    hit.on("pointerover", () => hit.setFillStyle(COLORS.ink, 0.2));
+    hit.on("pointerout", () => hit.setFillStyle(COLORS.ink, 0.1));
     hit.on("pointerdown", () => this.step(dir));
     this.add
       .text(x, y - 2, glyph, {
@@ -97,7 +97,7 @@ export class ModeSelectScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
   }
@@ -119,7 +119,7 @@ export class ModeSelectScene extends Phaser.Scene {
     const h = 248;
 
     const card = this.add.graphics();
-    card.fillStyle(0x06081a, 0.3);
+    card.fillStyle(COLORS.ink, 0.22);
     card.fillRoundedRect(left, top + 4, w, h, 20);
     card.fillStyle(COLORS.cardFill, 1);
     card.fillRoundedRect(left, top, w, h, 20);
@@ -136,7 +136,7 @@ export class ModeSelectScene extends Phaser.Scene {
           resolution: TEXT_RES,
           fontSize: "22px",
           fontStyle: "600",
-          color: "#ffffff",
+          color: "#4a3327",
           align: "center",
           wordWrap: { width: w - 32 },
         })
@@ -148,7 +148,7 @@ export class ModeSelectScene extends Phaser.Scene {
           fontFamily: FONT,
           resolution: TEXT_RES,
           fontSize: "13px",
-          color: "#dfe3ff",
+          color: "#6d5443",
           align: "center",
           lineSpacing: 5,
           wordWrap: { width: w - 44 },
@@ -164,7 +164,7 @@ export class ModeSelectScene extends Phaser.Scene {
           resolution: TEXT_RES,
           fontSize: "26px",
           fontStyle: "600",
-          color: "#ffd93d",
+          color: "#d98324",
         })
         .setOrigin(0.5)
     );
@@ -174,7 +174,7 @@ export class ModeSelectScene extends Phaser.Scene {
           fontFamily: FONT,
           resolution: TEXT_RES,
           fontSize: "10px",
-          color: "#c3c8f5",
+          color: "#9b7a5f",
         })
         .setOrigin(0.5)
     );
@@ -188,7 +188,7 @@ export class ModeSelectScene extends Phaser.Scene {
         startX + i * spacing,
         dotY,
         i === this.index ? 5 : 3.5,
-        i === this.index ? COLORS.teal : 0xffffff,
+        i === this.index ? COLORS.teal : COLORS.ink,
         i === this.index ? 1 : 0.32
       );
       this.cardBits.push(dot);

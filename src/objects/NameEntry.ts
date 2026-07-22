@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, UI_FONT, TEXT_RES } from "../config";
+import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { makeButton, Button } from "./Button";
 import { Save, NAME_MAX, cleanName, suggestName } from "../systems/Save";
 
@@ -26,9 +26,9 @@ export function openNameEntry(
     .setDepth(depth)
     .setInteractive();
   const panel = scene.add.graphics().setDepth(depth + 1);
-  panel.fillStyle(0xffffff, 0.13);
+  panel.fillStyle(COLORS.ink, 0.13);
   panel.fillRoundedRect(WIDTH / 2 - 150, cy - 100, 300, 236, 18);
-  panel.lineStyle(2, 0xffffff, 0.3);
+  panel.lineStyle(2, COLORS.ink, 0.3);
   panel.strokeRoundedRect(WIDTH / 2 - 150, cy - 100, 300, 236, 18);
 
   const title = scene.add
@@ -37,7 +37,7 @@ export function openNameEntry(
         resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
-      color: "#ffffff",
+      color: "#4a3327",
     })
     .setOrigin(0.5)
     .setDepth(depth + 2);
@@ -46,7 +46,7 @@ export function openNameEntry(
       fontFamily: FONT,
         resolution: TEXT_RES,
       fontSize: "12px",
-      color: "#c3c8f5",
+      color: "#9b7a5f",
     })
     .setOrigin(0.5)
     .setDepth(depth + 2);

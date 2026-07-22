@@ -70,7 +70,7 @@ export class Monster {
         resolution: TEXT_RES,
         fontSize: "17px",
         fontStyle: "500",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5)
       .setDepth(2);

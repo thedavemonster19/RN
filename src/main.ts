@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME, COLORS } from "./config";
+import { GAME, COLORS, RENDER_SCALE } from "./config";
 import { BootScene } from "./scenes/BootScene";
 import { MenuScene } from "./scenes/MenuScene";
 import { GameScene } from "./scenes/GameScene";
@@ -14,8 +14,8 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: "game",
   backgroundColor: COLORS.screen,
-  width: GAME.WIDTH,
-  height: GAME.HEIGHT,
+  width: GAME.WIDTH * RENDER_SCALE,
+  height: GAME.HEIGHT * RENDER_SCALE,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -56,6 +56,26 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 (window as unknown as { game: Phaser.Game }).game = game;
+
+/**
+ * Zoom every scene's camera by RENDER_SCALE so the oversized canvas still shows
+ * exactly the 400x720 world the game is laid out in.
+ *
+ * Hooked once per scene on CREATE rather than written into nine create()
+ * methods: a scene that restarts gets a fresh camera, and a listener cannot be
+ * forgotten when a tenth scene is added. Without it the extra canvas would
+ * simply show more world instead of the same world in more detail.
+ */
+game.events.once(Phaser.Core.Events.READY, () => {
+  for (const scene of game.scene.scenes) {
+    scene.events.on(Phaser.Scenes.Events.CREATE, () => {
+      const cam = scene.cameras?.main;
+      if (!cam) return;
+      cam.setZoom(RENDER_SCALE);
+      cam.centerOn(GAME.WIDTH / 2, GAME.HEIGHT / 2);
+    });
+  }
+});
 
 // Destroy the old game on hot-reload so dev edits don't stack duplicate
 // Phaser instances (no effect in a production build).

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { COLORS } from "../config";
 import { tierRadius, tierTexture } from "../data/foods";
 import { Spec } from "../systems/GameState";
 
@@ -67,7 +68,7 @@ export class Claw {
     g.clear();
 
     // the rail
-    g.lineStyle(4, 0xffffff, 0.16);
+    g.lineStyle(4, COLORS.ink, 0.16);
     g.beginPath();
     g.moveTo(this.aimMin - 16, this.railY - 8);
     g.lineTo(this.aimMax + 16, this.railY - 8);

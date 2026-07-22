@@ -8,11 +8,12 @@ const FONT = UI_FONT;
 
 /**
  * The bonus bar's strip, in the gap between the bin floor (470) and a
- * fully-grown monster. The clearance is tighter than the monster's body
- * suggests: its leaf sprout reaches ~485, not the 490 of BODY_HALF. Deliberately the full width of the bin so it
+ * fully-grown monster. Clearance is tight at BOTH ends: the monster's leaf
+ * sprout reaches ~485 (not the 490 of BODY_HALF), and a large food resting on
+ * the bin floor has square sprite bounds that reach the floor line at 470. Deliberately the full width of the bin so it
  * reads as belonging to the play area rather than to the side panels.
  */
-const HUD_BONUS = { x: 106, y: 472, w: 234, h: 9 } as const;
+const HUD_BONUS = { x: 106, y: 475, w: 234, h: 9 } as const;
 
 /**
  * A HUD disc standing in for a food. Real discs range from 22px to 124px
@@ -64,7 +65,7 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "34px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5, 0)
       .setDepth(depth);
@@ -75,7 +76,7 @@ export class Hud {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5, 0)
       .setDepth(depth);
@@ -86,7 +87,7 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "500",
-        color: "#ff5d78",
+        color: "#d43a55",
       })
       .setOrigin(0.5, 1)
       .setDepth(depth)
@@ -99,11 +100,11 @@ export class Hud {
     // stack of lookahead discs.
     const px = GAME.WIDTH - 30;
     const panel = scene.add.graphics().setDepth(depth - 1);
-    panel.fillStyle(0xffffff, 0.13);
+    panel.fillStyle(COLORS.ink, 0.13);
     panel.fillRoundedRect(px - 26, 100, 52, 134, 12);
     scene.add
       .text(px, 108, "WANTS", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
       .setOrigin(0.5)
       .setDepth(depth);
     // No tier number stamped on it: the food's own artwork already says which
@@ -113,7 +114,7 @@ export class Hud {
     this.wantDisc = scene.add.image(px, 140, "food1").setDepth(depth);
     scene.add
       .text(px, 180, "THEN", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.cravingDiscs = [206].map((qy) =>
@@ -123,11 +124,11 @@ export class Hud {
     // DROPS panel (left): the food you're about to drop, and what follows.
     const dx = 30;
     const dpanel = scene.add.graphics().setDepth(depth - 1);
-    dpanel.fillStyle(0xffffff, 0.13);
+    dpanel.fillStyle(COLORS.ink, 0.13);
     dpanel.fillRoundedRect(dx - 26, 200, 52, 150, 12);
     scene.add
       .text(dx, 208, "DROPS", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
       .setOrigin(0.5)
       .setDepth(depth);
     this.dropDiscs = [236, 268, 298, 326].map((qy, i) =>
@@ -145,7 +146,7 @@ export class Hud {
         resolution: TEXT_RES,
         fontSize: "10px",
         fontStyle: "600",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(1, 0.5)
       .setDepth(depth);
@@ -173,7 +174,7 @@ export class Hud {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "11px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(depth);
@@ -218,7 +219,7 @@ export class Hud {
     // slab, so it supports the score instead of competing with it.
     const bw = 200;
     const bx = (GAME.WIDTH - bw) / 2;
-    g.fillStyle(0xffffff, 0.12);
+    g.fillStyle(COLORS.ink, 0.12);
     g.fillRoundedRect(bx, 74, bw, 5, 2.5);
     g.fillStyle(COLORS.teal, 1);
     g.fillRoundedRect(bx, 74, Math.max(4, bw * s.growthProgress), 5, 2.5);
@@ -232,7 +233,7 @@ export class Hud {
     const f = s.freshness;
     const fx = HUD_BONUS.x;
     const fw = HUD_BONUS.w;
-    g.fillStyle(0xffffff, 0.18);
+    g.fillStyle(COLORS.ink, 0.18);
     g.fillRoundedRect(fx, HUD_BONUS.y, fw, HUD_BONUS.h, HUD_BONUS.h / 2);
     if (f > 0) {
       g.fillStyle(f > 0.6 ? COLORS.teal : f > 0.25 ? COLORS.amber : COLORS.coral, 1);

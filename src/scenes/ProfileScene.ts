@@ -57,7 +57,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "28px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
     this.add
@@ -65,14 +65,14 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5);
 
     const best = Save.bestRun;
     const panelY = 150;
     const panel = this.add.graphics();
-    panel.fillStyle(0xffffff, 0.12);
+    panel.fillStyle(COLORS.ink, 0.12);
     panel.fillRoundedRect(36, panelY, WIDTH - 72, best ? 190 : 96, 16);
 
     this.add
@@ -80,7 +80,7 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5);
 
@@ -90,7 +90,7 @@ export class ProfileScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "13px",
-          color: "#dfe3ff",
+          color: "#6d5443",
         })
         .setOrigin(0.5);
     } else {
@@ -100,7 +100,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "40px",
           fontStyle: "600",
-          color: "#ffd93d",
+          color: "#d98324",
         })
         .setOrigin(0.5);
 
@@ -113,7 +113,7 @@ export class ProfileScene extends Phaser.Scene {
         const y = panelY + 96 + i * 24;
         this.add
           .text(58, y, label, { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "13px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "13px", color: "#9b7a5f" })
           .setOrigin(0, 0.5);
         this.add
           .text(WIDTH - 58, y, value, {
@@ -121,7 +121,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
             fontSize: "13px",
             fontStyle: "600",
-            color: "#ffffff",
+            color: "#4a3327",
           })
           .setOrigin(1, 0.5);
       });
@@ -129,7 +129,7 @@ export class ProfileScene extends Phaser.Scene {
       const y = panelY + 168;
       this.add
         .text(58, y, "Biggest food", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "13px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "13px", color: "#9b7a5f" })
         .setOrigin(0, 0.5);
       const disc = this.add.image(WIDTH - 96, y, tierTexture(best.biggestTier || 1));
       disc.setDisplaySize(20, 20);
@@ -139,7 +139,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: "600",
-          color: "#ffffff",
+          color: "#4a3327",
         })
         .setOrigin(1, 0.5);
     }
@@ -154,7 +154,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "22px",
         fontStyle: "600",
-        color: "#ffd93d",
+        color: "#d98324",
       })
       .setOrigin(0.5);
     this.add
@@ -162,7 +162,7 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5);
     this.add
@@ -171,7 +171,7 @@ export class ProfileScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "22px",
         fontStyle: "600",
-        color: "#ffd93d",
+        color: "#d98324",
       })
       .setOrigin(0.5);
     this.add
@@ -179,7 +179,7 @@ export class ProfileScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5);
 
@@ -201,7 +201,7 @@ export class ProfileScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "11px",
-          color: "#a6adde",
+          color: "#ab8d74",
           align: "center",
           lineSpacing: 4,
         }

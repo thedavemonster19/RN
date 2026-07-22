@@ -185,23 +185,23 @@ export class GameScene extends Phaser.Scene {
       "pointerdown",
       (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
         if (!ready() || this.aiming || this.press || over.length > 0) return;
-        const hit = this.pile.foodAt(p.x, p.y);
+        const hit = this.pile.foodAt(p.worldX, p.worldY);
         if (hit) {
-          this.press = { food: hit, x: p.x, y: p.y };
+          this.press = { food: hit, x: p.worldX, y: p.worldY };
         } else if (this.state.has("swing")) {
           // Swinging Claw: you don't aim, you time it — a tap drops wherever
           // the auto-swinging claw happens to be.
           this.dropQueued();
         } else {
           this.aiming = true;
-          this.claw.aim(p.x, this.currentDrop());
+          this.claw.aim(p.worldX, this.currentDrop());
         }
       }
     );
 
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
       if (!ready() || !p.isDown) return;
-      if (this.aiming) this.claw.aim(p.x, this.currentDrop());
+      if (this.aiming) this.claw.aim(p.worldX, this.currentDrop());
     });
 
     this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
@@ -264,7 +264,7 @@ export class GameScene extends Phaser.Scene {
   private undoDrop(): void {
     if (this.over || this.aiming || this.press) return;
     if (this.state.undosLeft <= 0) {
-      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "no undos left", "#c3c8f5");
+      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "no undos left", "#9b7a5f");
       return;
     }
     const last = this.lastDrop;
@@ -274,7 +274,7 @@ export class GameScene extends Phaser.Scene {
       last &&
       last.foods.every((f) => this.pile.items.includes(f) && !f.merging);
     if (!last || !allPresent) {
-      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#c3c8f5");
+      this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#9b7a5f");
       return;
     }
     this.replayLog.push([Ev.Undo, 0]);
@@ -292,7 +292,7 @@ export class GameScene extends Phaser.Scene {
     this.lastDrop = null;
     this.claw.setDispenser(this.currentDrop());
     this.refreshUndo();
-    this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "undone", "#2ff0d6");
+    this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "undone", "#0e9d88");
   }
 
   private resolvePress(p: Phaser.Input.Pointer): void {
@@ -301,9 +301,9 @@ export class GameScene extends Phaser.Scene {
     // It may have merged away while the finger was down.
     if (!this.pile.items.includes(food) || food.merging) return;
 
-    if (y - p.y > SWIPE_UP) {
+    if (y - p.worldY > SWIPE_UP) {
       this.pocketFood(food);
-    } else if (Phaser.Math.Distance.Between(x, y, p.x, p.y) < TAP_SLOP) {
+    } else if (Phaser.Math.Distance.Between(x, y, p.worldX, p.worldY) < TAP_SLOP) {
       this.feedFood(food);
     }
     // Any other drag does nothing — the pile is not yours to rearrange.
@@ -333,7 +333,7 @@ export class GameScene extends Phaser.Scene {
         food.mo.x,
         food.mo.y - 20,
         food.tier < want ? "too small!" : "too big!",
-        "#ff5d78"
+        "#d43a55"
       );
       return;
     }
@@ -350,7 +350,7 @@ export class GameScene extends Phaser.Scene {
         this.state.pocket !== null
           ? "pocket full"
           : `needs ${this.state.stashCost(food.tier)}`;
-      this.floatText(food.mo.x, food.mo.y - 20, msg, "#c3c8f5");
+      this.floatText(food.mo.x, food.mo.y - 20, msg, "#9b7a5f");
       return;
     }
     this.replayLog.push([Ev.Stash, food.tier]);
@@ -411,7 +411,7 @@ export class GameScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "700",
-        color: "#2ff0d6",
+        color: "#0e9d88",
         align: "center",
         lineSpacing: 4,
       })
@@ -448,10 +448,10 @@ export class GameScene extends Phaser.Scene {
       this.monster.mouthX,
       this.monster.mouthY - 30,
       `+${result.points}`,
-      "#ffd93d"
+      "#d98324"
     );
     if (result.fresh >= result.tier * 20) {
-      this.floatText(this.monster.mouthX, this.monster.mouthY - 54, "fresh!", "#2ff0d6");
+      this.floatText(this.monster.mouthX, this.monster.mouthY - 54, "fresh!", "#0e9d88");
     }
     if (result.leveledUp) {
       this.monster.grow(this.state.milestone);
@@ -477,18 +477,18 @@ export class GameScene extends Phaser.Scene {
     const bx = 30;
     const by = GAME.HEIGHT - 78;
     const btn = this.add
-      .circle(bx, by, 20, 0xffffff, 0.08)
-      .setStrokeStyle(1, 0xffffff, 0.25)
+      .circle(bx, by, 20, COLORS.ink, 0.08)
+      .setStrokeStyle(1, COLORS.ink, 0.25)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
     this.add
       .text(bx, by - 4, "↩", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "19px", color: "#ffffff" })
+        resolution: TEXT_RES, fontSize: "19px", color: "#4a3327" })
       .setOrigin(0.5)
       .setDepth(31);
     this.undoLabel = this.add
       .text(bx, by + 22, "", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "10px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
       .setOrigin(0.5)
       .setDepth(31);
     btn.on("pointerdown", () => this.undoDrop());
@@ -602,7 +602,7 @@ export class GameScene extends Phaser.Scene {
           resolution: TEXT_RES,
           fontSize: "11px",
           fontStyle: "700",
-          color: "#ffd93d",
+          color: "#d98324",
         })
         .setOrigin(0.5)
         .setDepth(41)
@@ -616,7 +616,7 @@ export class GameScene extends Phaser.Scene {
             resolution: TEXT_RES,
             fontSize: "17px",
             fontStyle: "700",
-            color: "#ffffff",
+            color: "#4a3327",
           })
           .setOrigin(0.5)
           .setDepth(41),
@@ -625,7 +625,7 @@ export class GameScene extends Phaser.Scene {
             fontFamily: FONT,
             resolution: TEXT_RES,
             fontSize: "10px",
-            color: "#c3c8f5",
+            color: "#9b7a5f",
             align: "center",
             wordWrap: { width: 270 },
           })
@@ -651,13 +651,13 @@ export class GameScene extends Phaser.Scene {
     if (p !== null) {
       this.pocketDisc.setTexture(tierTexture(p.tier));
       this.pocketDisc.setDisplaySize(28, 28);
-      this.pocketStatus.setText("tap to use").setColor("#2ff0d6");
+      this.pocketStatus.setText("tap to use").setColor("#0e9d88");
       return;
     }
     // Charges banked. Bigger food costs more, so this is a budget, not a flag.
     this.pocketStatus
       .setText(`⚡${this.state.pocketCharges}`)
-      .setColor(this.state.pocketCharges > 0 ? "#2ff0d6" : "#c3c8f5");
+      .setColor(this.state.pocketCharges > 0 ? "#0e9d88" : "#9b7a5f");
   }
 
   /** The pocket slot — tap it to load the saved food back onto the claw. */
@@ -665,22 +665,22 @@ export class GameScene extends Phaser.Scene {
     const px = GameScene.POCKET_X;
     const py = GameScene.POCKET_Y;
     const panel = this.add.graphics().setDepth(19);
-    panel.fillStyle(0xffffff, 0.13);
+    panel.fillStyle(COLORS.ink, 0.13);
     panel.fillRoundedRect(px - 26, py - 30, 52, 86, 12);
-    panel.lineStyle(2, 0xffffff, 0.32);
+    panel.lineStyle(2, COLORS.ink, 0.32);
     panel.strokeCircle(px, py + 8, 15);
     this.add
       .text(px, py - 18, "POCKET", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "10px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(20);
     this.pocketStatus = this.add
       .text(px, py + 38, "", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "9px", color: "#c3c8f5" })
+        resolution: TEXT_RES, fontSize: "9px", color: "#9b7a5f" })
       .setOrigin(0.5)
       .setDepth(20);
     this.pocketDisc = this.add
@@ -702,7 +702,7 @@ export class GameScene extends Phaser.Scene {
     if (!p) return;
     this.pocketLoad = p;
     this.claw.setDispenser(p);
-    this.floatText(this.claw.x, BIN.railY + 34, "from pocket", "#c3c8f5");
+    this.floatText(this.claw.x, BIN.railY + 34, "from pocket", "#9b7a5f");
   }
 
   /**
@@ -714,8 +714,8 @@ export class GameScene extends Phaser.Scene {
     const bx = 26;
     const by = 26;
     const btn = this.add
-      .circle(bx, by, 16, 0xffffff, 0.08)
-      .setStrokeStyle(1, 0xffffff, 0.25)
+      .circle(bx, by, 16, COLORS.ink, 0.08)
+      .setStrokeStyle(1, COLORS.ink, 0.25)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
     this.add
@@ -724,7 +724,7 @@ export class GameScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "22px",
         fontStyle: "600",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(31);
@@ -745,13 +745,13 @@ export class GameScene extends Phaser.Scene {
     const cy = HEIGHT / 2 - 20;
 
     const shade = this.add
-      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.88)
+      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, COLORS.scrim, 0.93)
       .setDepth(depth)
       .setInteractive();
     const panel = this.add.graphics().setDepth(depth + 1);
-    panel.fillStyle(0xffffff, 0.13);
+    panel.fillStyle(COLORS.ink, 0.13);
     panel.fillRoundedRect(WIDTH / 2 - 150, cy - 96, 300, 268, 18);
-    panel.lineStyle(2, 0xffffff, 0.3);
+    panel.lineStyle(2, COLORS.ink, 0.3);
     panel.strokeRoundedRect(WIDTH / 2 - 150, cy - 96, 300, 268, 18);
 
     const title = this.add
@@ -760,7 +760,7 @@ export class GameScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "20px",
         fontStyle: "600",
-        color: "#ffffff",
+        color: "#4a3327",
       })
       .setOrigin(0.5)
       .setDepth(depth + 2);
@@ -769,7 +769,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "12px",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(depth + 2);
@@ -824,8 +824,8 @@ export class GameScene extends Phaser.Scene {
     const bx = GAME.WIDTH - 26;
     const by = GAME.HEIGHT - 26;
     const btn = this.add
-      .circle(bx, by, 16, 0xffffff, 0.08)
-      .setStrokeStyle(1, 0xffffff, 0.25)
+      .circle(bx, by, 16, COLORS.ink, 0.08)
+      .setStrokeStyle(1, COLORS.ink, 0.25)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
     this.add
@@ -834,7 +834,7 @@ export class GameScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "18px",
         fontStyle: "500",
-        color: "#c3c8f5",
+        color: "#9b7a5f",
       })
       .setOrigin(0.5)
       .setDepth(31);
@@ -867,7 +867,7 @@ export class GameScene extends Phaser.Scene {
       "Keep the pile under the red line.",
     ];
     const shade = this.add
-      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x06081a, 0.9)
+      .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, COLORS.scrim, 0.94)
       .setDepth(40)
       .setInteractive();
     const txt = this.add
@@ -875,7 +875,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "15px",
-        color: "#ffffff",
+        color: "#4a3327",
         align: "center",
         lineSpacing: 5,
       })
@@ -886,7 +886,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "14px",
-        color: "#2ff0d6",
+        color: "#0e9d88",
       })
       .setOrigin(0.5)
       .setDepth(41);
@@ -905,7 +905,7 @@ export class GameScene extends Phaser.Scene {
         260,
         `As big as a ${milestoneName(this.state.milestone - 1)}!`,
         { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "22px", fontStyle: "500", color: "#ffd93d" }
+        resolution: TEXT_RES, fontSize: "22px", fontStyle: "500", color: "#d98324" }
       )
       .setOrigin(0.5)
       .setDepth(30);
@@ -1021,7 +1021,7 @@ export class GameScene extends Phaser.Scene {
       const x1 = Math.max(BIN.left + 2, Math.min(BIN.right - 2, st.x - (len / 2) * dir));
       const x2 = Math.max(BIN.left + 2, Math.min(BIN.right - 2, st.x + (len / 2) * dir));
       if (Math.abs(x2 - x1) < 3) continue;
-      g.lineStyle(st.thick, 0xffffff, 0.05 + strength * 0.16);
+      g.lineStyle(st.thick, COLORS.ink, 0.05 + strength * 0.16);
       g.beginPath();
       g.moveTo(x1, y);
       g.lineTo(x2, y);
@@ -1053,7 +1053,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.binGfx;
     const line = this.lineY();
     g.clear();
-    g.fillStyle(0xffffff, 0.09);
+    g.fillStyle(COLORS.ink, 0.09);
     g.fillRoundedRect(
       BIN.left,
       line - 8,
@@ -1061,7 +1061,7 @@ export class GameScene extends Phaser.Scene {
       BIN.floor - line + 20,
       18
     );
-    g.lineStyle(2, 0xffffff, 0.28);
+    g.lineStyle(2, COLORS.ink, 0.28);
     g.strokeRoundedRect(
       BIN.left,
       line - 8,

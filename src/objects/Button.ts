@@ -37,7 +37,7 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
     g.clear();
     // A soft drop shadow lifts the button off the background — the flat fills
     // were what made everything read as washed out.
-    g.fillStyle(0x06081a, o.primary ? 0.35 : 0.25);
+    g.fillStyle(COLORS.ink, o.primary ? 0.35 : 0.25);
     g.fillRoundedRect(left, top + 3, w, HEIGHT, RADIUS);
 
     if (o.primary) {
@@ -64,7 +64,7 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
         resolution: TEXT_RES,
       fontSize: "19px",
       fontStyle: "600",
-      color: o.primary ? "#140d3d" : "#ffffff",
+      color: o.primary ? "#3a2a1e" : "#4a3327",
     })
     .setOrigin(0.5)
     .setDepth(depth + 1);

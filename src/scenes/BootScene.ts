@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { TIER_RADII } from "../data/foods";
 import { paintFood } from "../data/foodArt";
 import { FOOD_SHEET, SHEET_CELL, SHEET_COLS } from "../data/foodSheet";
+import { loadUiFont } from "../data/uiFont";
 
 /**
  * Builds one food texture per tier, then hands off to the game.
@@ -25,10 +26,18 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    const img = new Image();
-    img.onload = () => this.finish(img);
-    img.onerror = () => this.finish(null);
-    img.src = FOOD_SHEET;
+    const sheet = new Promise<HTMLImageElement | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = FOOD_SHEET;
+    });
+    // The FONT has to be ready before any Text exists. Phaser rasterises a
+    // Text to a texture the moment it is constructed, so a webfont that
+    // arrives even one frame late leaves every label baked in the fallback
+    // face — and nothing ever re-renders them. Both waits run together; a
+    // failure of either resolves rather than rejects, so the game always boots.
+    void Promise.all([sheet, loadUiFont()]).then(([img]) => this.finish(img));
   }
 
   private finish(sheet: HTMLImageElement | null): void {
