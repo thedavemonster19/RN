@@ -203,6 +203,8 @@ export class GameScene extends Phaser.Scene {
     this.monster = new Monster(this, MONSTER.x, MONSTER.y);
     this.monster.setName(Save.name);
     this.monster.setSize(currentSize(this.state.milestone));
+    // Show the "for scale" baker in-game, where the monster actually grows.
+    this.monster.setScaleRefVisible(true);
     this.hud = new Hud(this, this.state);
 
     // Merging is where the skill shows: a well-aimed drop can set off a chain.

@@ -54,6 +54,8 @@ export class Monster {
   private auraPulse?: Phaser.Tweens.Tween;
   private face: Phaser.GameObjects.Graphics;
   private sizeLabel: Phaser.GameObjects.Text;
+  /** A fixed-size figure the monster is compared against — see drawScaleRef. */
+  private scaleRef?: Phaser.GameObjects.Graphics;
   private baseScale = BASE_SCALE;
   private monsterName = "";
   private sizeText = "";
@@ -95,6 +97,19 @@ export class Monster {
 
     this.setFace("happy");
     this.layoutLabels();
+
+    // The scale reference is off by default (the menu doesn't want it); a scene
+    // that shows the monster growing turns it on.
+    this.buildScaleRef();
+    this.setScaleRefVisible(false);
+  }
+
+  /** Show or hide the "for scale" baker beside the monster. */
+  setScaleRefVisible(visible: boolean): void {
+    this.scaleRef?.setVisible(visible);
+    (this.scene.children.getByName("scaleRefLabel") as
+      | Phaser.GameObjects.Text
+      | null)?.setVisible(visible);
   }
 
   /**
@@ -117,6 +132,58 @@ export class Monster {
       g.fillStyle(color, 0.1 * (1 - t) + 0.03);
       g.fillEllipse(0, 6, spread * 2 * t, spread * 1.85 * t);
     }
+  }
+
+  /**
+   * A tiny baker who never changes size, standing on the same ground as the
+   * monster — the constant the monster is measured against. It starts a little
+   * taller than a newborn and, as the monster grows milestone by milestone,
+   * gets visibly towered over. Drawn OUTSIDE the scaling container so it stays
+   * put while the monster balloons past it.
+   */
+  private buildScaleRef(): void {
+    const g = this.scene.add.graphics().setDepth(0);
+    // Ground shared with the monster: its feet at full scale reach ~+58.
+    const groundY = this.y + 58;
+    // Left of the plate with clearance even at MAX monster scale, where the
+    // doily's left edge reaches ~x-106. Measured: at -124 the baker and its
+    // caption both clear the grown plate.
+    const bx = this.x - 124;
+    // faint shadow on the shared ground
+    g.fillStyle(COLORS.ink, 0.12);
+    g.fillEllipse(bx, groundY + 2, 34, 8);
+    // legs
+    g.fillStyle(0x6d5443, 1);
+    g.fillRect(bx - 6, groundY - 12, 4, 12);
+    g.fillRect(bx + 2, groundY - 12, 4, 12);
+    // apron body
+    g.fillStyle(COLORS.plate, 1);
+    g.fillRoundedRect(bx - 11, groundY - 34, 22, 24, 6);
+    g.lineStyle(1.5, COLORS.ink, 0.4);
+    g.strokeRoundedRect(bx - 11, groundY - 34, 22, 24, 6);
+    // head
+    g.fillStyle(0xe8b98a, 1);
+    g.fillCircle(bx, groundY - 40, 8);
+    // toque (chef's hat)
+    g.fillStyle(0xfffaf0, 1);
+    g.fillEllipse(bx, groundY - 52, 20, 12);
+    g.fillEllipse(bx - 6, groundY - 56, 10, 10);
+    g.fillEllipse(bx + 6, groundY - 56, 10, 10);
+    g.fillEllipse(bx, groundY - 58, 11, 11);
+    g.fillStyle(0xfffaf0, 1);
+    g.fillRect(bx - 11, groundY - 50, 22, 6);
+    // a "for scale" tick label under it
+    this.scene.add
+      .text(bx, groundY + 12, "for scale", {
+        fontFamily: UI_FONT,
+        resolution: TEXT_RES,
+        fontSize: "8px",
+        color: "#9b7a5f",
+      })
+      .setOrigin(0.5)
+      .setDepth(0)
+      .setName("scaleRefLabel");
+    this.scaleRef = g;
   }
 
   /** A round scalloped doily plate the monster sits on. */
