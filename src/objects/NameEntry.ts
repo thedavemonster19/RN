@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME, COLORS, UI_FONT, TEXT_RES } from "../config";
 import { makeButton, Button } from "./Button";
 import { Save, NAME_MAX, cleanName, suggestName } from "../systems/Save";
+import { Cloud } from "../systems/Cloud";
 
 const FONT = UI_FONT;
 
@@ -67,9 +68,11 @@ export function openNameEntry(
     "font-weight: 600",
     "text-align: center",
     `font-family: ${FONT}`,
-    "color: #eaf0ff",
-    "background: rgba(255,255,255,0.10)",
-    "border: 1.5px solid rgba(255,255,255,0.25)",
+    // Cream-theme colours: the input is a real DOM element, so it can't read
+    // COLORS and was left on the old dark palette — dark ink on a cream field.
+    "color: #4a3327",
+    "background: rgba(107,74,51,0.10)",
+    "border: 1.5px solid rgba(107,74,51,0.28)",
     "border-radius: 12px",
     "outline: none",
   ].join(";");
@@ -103,6 +106,11 @@ export function openNameEntry(
   const commit = () => {
     // An empty field takes the placeholder, so a monster is never nameless.
     Save.name = cleanName(el.value) || el.placeholder;
+    // Push the new name up so the account stays current. Without this a rename
+    // lived only on this device, and the next cloud pull would quietly revert
+    // it to the server's stale value. Fire-and-forget: renaming must feel
+    // instant and must work signed out (where this is a safe no-op).
+    if (Cloud.signedIn) void Cloud.pushName(Save.name);
     cleanup();
     opts.onSaved(Save.name);
   };

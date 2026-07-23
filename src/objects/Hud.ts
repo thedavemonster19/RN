@@ -13,7 +13,16 @@ const FONT = UI_FONT;
  * the bin floor has square sprite bounds that reach the floor line at 470. Deliberately the full width of the bin so it
  * reads as belonging to the play area rather than to the side panels.
  */
-const HUD_BONUS = { x: 106, y: 475, w: 234, h: 9 } as const;
+/**
+ * The bonus (freshness) ring, drawn around the WANTS craving disc.
+ *
+ * It used to be a horizontal bar floating in the gap between the bin floor and
+ * the monster, which read as awkwardly placed — nothing else lived there. A
+ * ring around the craving is where it belongs: freshness IS the current
+ * craving's, so it should sit on the craving, and a depleting arc reads as a
+ * countdown at a glance. Green is kept, as requested.
+ */
+const BONUS_RING_R = 25;
 
 /**
  * A HUD disc standing in for a food. Real discs range from 22px to 124px
@@ -138,19 +147,6 @@ export class Hud {
         .setDepth(depth)
     );
 
-    // Label for the bonus strip, left of the bar rather than above it: the
-    // band between the bin floor and the monster is only ~16px tall.
-    scene.add
-      .text(HUD_BONUS.x - 8, HUD_BONUS.y + HUD_BONUS.h / 2, "BONUS", {
-        fontFamily: FONT,
-        resolution: TEXT_RES,
-        fontSize: "10px",
-        fontStyle: "600",
-        color: "#9b7a5f",
-      })
-      .setOrigin(1, 0.5)
-      .setDepth(depth);
-
     // The food chain, tier 1 → 10 left to right along the bottom — the whole
     // merge ladder at a glance, with the currently craved tier lit up. Doubles
     // as the tutorial: you can read "what merges into what" without being told.
@@ -224,20 +220,28 @@ export class Hud {
     g.fillStyle(COLORS.teal, 1);
     g.fillRoundedRect(bx, 74, Math.max(4, bw * s.growthProgress), 5, 2.5);
 
-    // Bonus (freshness): full = full bonus, and it burns down as you take
-    // drops. It used to be a 40x5px sliver tucked inside the 52px-wide WANTS
-    // column, which is why it was easy to miss entirely. It now gets its own
-    // strip in the gap between the bin floor and the monster — the widest
-    // empty band on the screen, and directly in the path between the food and
-    // the mouth, which is where you are already looking.
+    // Bonus (freshness) ring around the WANTS craving disc. A full ring is full
+    // bonus; it depletes clockwise from the top as you take drops. Drawn as
+    // short chords along the circle rather than Graphics.arc because a stroked
+    // arc's caps looked ragged at this radius.
     const f = s.freshness;
-    const fx = HUD_BONUS.x;
-    const fw = HUD_BONUS.w;
-    g.fillStyle(COLORS.ink, 0.18);
-    g.fillRoundedRect(fx, HUD_BONUS.y, fw, HUD_BONUS.h, HUD_BONUS.h / 2);
+    const cx = GAME.WIDTH - 30;
+    const cy = 140;
+    const start = -Math.PI / 2; // 12 o'clock
+    g.lineStyle(3.5, COLORS.ink, 0.16);
+    g.strokeCircle(cx, cy, BONUS_RING_R);
     if (f > 0) {
-      g.fillStyle(f > 0.6 ? COLORS.teal : f > 0.25 ? COLORS.amber : COLORS.coral, 1);
-      g.fillRoundedRect(fx, HUD_BONUS.y, Math.max(HUD_BONUS.h, fw * f), HUD_BONUS.h, HUD_BONUS.h / 2);
+      g.lineStyle(3.5, COLORS.teal, 1);
+      const seg = Math.max(2, Math.round(f * 48));
+      g.beginPath();
+      for (let i = 0; i <= seg; i++) {
+        const a = start + (i / 48) * Math.PI * 2;
+        const x = cx + Math.cos(a) * BONUS_RING_R;
+        const y = cy + Math.sin(a) * BONUS_RING_R;
+        if (i === 0) g.moveTo(x, y);
+        else g.lineTo(x, y);
+      }
+      g.strokePath();
     }
   }
 }

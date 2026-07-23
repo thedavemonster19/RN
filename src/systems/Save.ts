@@ -120,8 +120,14 @@ export const Save = {
    * we take the max of each number rather than overwriting — so syncing can
    * never cost a player a run they made offline on this device.
    *
-   * The monster's name is the one exception: it is a preference, not a score,
-   * so the account's name wins whenever it has one.
+   * The monster's name is adopted from the cloud ONLY when this device has no
+   * name yet — a fresh device signing in. It used to overwrite unconditionally,
+   * which was a real bug: rename your monster, open Profile (which pulls), and
+   * your new name was silently replaced by whatever stale value the server last
+   * recorded — usually an old name, sometimes a different case. A local rename
+   * now always wins on its own device and is pushed up separately (see the
+   * rename handlers), so the account stays current without ever clobbering the
+   * name you just typed.
    */
   mergeCloud(cloud: {
     monster?: string;
@@ -130,7 +136,7 @@ export const Save = {
     runs?: number;
   }): void {
     const data = read();
-    if (cloud.monster) data.name = cleanName(cloud.monster);
+    if (cloud.monster && !data.name) data.name = cleanName(cloud.monster);
     if ((cloud.best ?? 0) > data.best) {
       data.best = cloud.best ?? 0;
       // Keep the record consistent: the stats must describe the best score.

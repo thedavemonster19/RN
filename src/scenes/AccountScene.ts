@@ -191,9 +191,9 @@ export class AccountScene extends Phaser.Scene {
       "padding: 12px 14px",
       "font-size: 16px",
       `font-family: ${FONT}`,
-      "color: #eaf0ff",
-      "background: rgba(255,255,255,0.10)",
-      "border: 1.5px solid rgba(255,255,255,0.22)",
+      "color: #4a3327",
+      "background: rgba(107,74,51,0.10)",
+      "border: 1.5px solid rgba(107,74,51,0.28)",
       "border-radius: 12px",
       "outline: none",
     ].join(";");
@@ -236,7 +236,7 @@ export class AccountScene extends Phaser.Scene {
         // instructions rather than pretending they're signed in.
         this.busy = false;
         this.message
-          .setColor("#0e9d88")
+          .setColor("#d98324")
           .setText(
             `Account created. Check ${mail} for a confirmation link, then sign in.`
           );

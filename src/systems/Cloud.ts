@@ -175,6 +175,22 @@ class CloudService {
     });
   }
 
+  /**
+   * Update just the monster's name on the account, unconditionally.
+   *
+   * Separate from pushProgress on purpose: that one is gated on the score
+   * having increased (`.lt("best_score", best)`), so routing a rename through
+   * it would silently drop the name whenever the player's best hadn't changed
+   * — which is almost always. A rename must always land.
+   */
+  async pushName(monster: string): Promise<void> {
+    if (!this.client || !this.userId) return;
+    await this.client
+      .from("profiles")
+      .update({ monster, updated_at: new Date().toISOString() })
+      .eq("id", this.userId);
+  }
+
   /** Mirror local progress up. Only overwrites the best if this run beat it. */
   async pushProgress(
     monster: string,

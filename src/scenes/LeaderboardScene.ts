@@ -152,7 +152,7 @@ export class LeaderboardScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "15px",
         fontStyle: "600",
-        color: "#0e9d88",
+        color: "#4a3327",
       })
       .setOrigin(0.5);
     this.modeUi.push(label);
@@ -256,7 +256,7 @@ export class LeaderboardScene extends Phaser.Scene {
           fontFamily: FONT,
         resolution: TEXT_RES,
           fontSize: "14px",
-          color: mine ? "#0e9d88" : "#4a3327",
+          color: mine ? "#d98324" : "#4a3327",
         })
         .setOrigin(0, 0.5);
       const score = this.add

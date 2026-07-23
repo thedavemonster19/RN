@@ -41,10 +41,10 @@ export function makeButton(scene: Phaser.Scene, o: ButtonOpts): Button {
     g.fillRoundedRect(left, top + 3, w, HEIGHT, RADIUS);
 
     if (o.primary) {
-      g.fillStyle(COLORS.teal, 1);
+      g.fillStyle(COLORS.berry, 1);
       g.fillRoundedRect(left, top, w, HEIGHT, RADIUS);
       // A lighter band across the top half reads as a gentle sheen.
-      g.fillStyle(0xffffff, hover ? 0.28 : 0.16);
+      g.fillStyle(0xffffff, hover ? 0.3 : 0.18);
       g.fillRoundedRect(left + 3, top + 2, w - 6, HEIGHT * 0.45, RADIUS - 4);
     } else {
       g.fillStyle(COLORS.cardFill, 1);

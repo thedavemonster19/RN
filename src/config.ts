@@ -64,8 +64,24 @@ export const COLORS = {
   screen: 0xfff4da,
   text: 0x4a3327,
   textMuted: 0x9b7a5f,
-  teal: 0x17b39b,
+  /**
+   * Teal is now reserved for ENERGY only — the pocket charge and the bonus
+   * ring. It used to be the whole game's accent (buttons, monster), which the
+   * cream-and-brown theme fought. Keeping it to the two "charge" indicators
+   * makes green MEAN something instead of being everywhere.
+   */
+  teal: 0x2bb39a,
   tealDeep: 0x0e8f7c,
+  /**
+   * The primary accent — the play button and the monster. A strawberry-milk
+   * rose, chosen to sit WITH cream and brown (it is the pink of bakery
+   * frosting) rather than against them the way the old teal did. Deeper than
+   * the pale pinks of the food so the monster still reads as its own thing.
+   */
+  berry: 0xef7a9b,
+  berryDeep: 0xd85a7e,
+  /** A soft cream plate/doily under the monster, edged in tan. */
+  plate: 0xfff1d6,
   amber: 0xe89a1c,
   coral: 0xf2688f,
   danger: 0xd94860,

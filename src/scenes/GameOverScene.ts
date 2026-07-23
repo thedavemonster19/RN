@@ -87,7 +87,7 @@ export class GameOverScene extends Phaser.Scene {
                 ? "Verified — posted to today's board"
                 : "Verified — counted for all-time"
             )
-            .setColor("#0e9d88");
+            .setColor("#d98324");
         } else {
           syncNote
             .setText(`Not posted: ${r.error ?? "unknown error"}`)
@@ -134,7 +134,7 @@ export class GameOverScene extends Phaser.Scene {
         resolution: TEXT_RES,
           fontSize: "13px",
           fontStyle: isBest ? "600" : "400",
-          color: isBest ? "#0e9d88" : "#9b7a5f",
+          color: isBest ? "#d98324" : "#9b7a5f",
         }
       )
       .setOrigin(0.5);

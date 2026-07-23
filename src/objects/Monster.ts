@@ -14,13 +14,26 @@ const LABEL_MAX_Y = 646;
 type Face = "happy" | "eating" | "refuse";
 
 /**
- * One aura colour per size milestone, cycling once it runs off the end. Ordered
- * to feel like it's heating up as the monster grows — teal, green, gold, coral,
- * violet, blue — so a level-up reads as a visible change of state.
+ * Which monster to draw.
+ *
+ * "mochi" is the bakery redesign: a soft strawberry-milk dumpling with a cream
+ * swirl on top and simple dot eyes. "classic" is the original teal sprout-blob.
+ * Both are fully implemented below, so switching back is this one word — the
+ * old design is kept, not deleted, exactly so it can be restored.
+ */
+const MONSTER_STYLE: "mochi" | "classic" = "mochi";
+
+/** Eye/mouth ink — warm brown to sit in the cream-and-brown theme, not navy. */
+const INK = 0x4a3327;
+
+/**
+ * One aura colour per size milestone, cycling once it runs off the end. Warm
+ * bakery tones now — honey, berry, caramel — so a level-up reads as a visible
+ * change of state without clashing with the cream page.
  */
 const AURA_COLORS = [
-  0x37e0d0, 0x8ad155, 0xffd66b, 0xf7b955, 0xf27a9b, 0xe05ac8, 0x9b7bd4,
-  0x5b9be2,
+  0xf7c948, 0xf29ab0, 0xe8a15a, 0xef7a9b, 0xd98324, 0xd85a7e, 0xc9a24a,
+  0xb56d8a,
 ];
 
 /**
@@ -53,12 +66,17 @@ export class Monster {
     // The aura sits behind the body inside the same container, so it scales
     // with the monster automatically.
     this.aura = scene.add.graphics();
+    // A little scalloped plate under it — a bakery doily that scales WITH the
+    // monster, so its growth reads as a size against a familiar object rather
+    // than just a number ticking up. Behind the body, in front of the aura.
+    const plate = scene.add.graphics();
+    this.drawPlate(plate);
     const body = scene.add.graphics();
     this.drawBody(body);
     this.face = scene.add.graphics();
 
     this.container = scene.add
-      .container(x, y, [this.aura, body, this.face])
+      .container(x, y, [this.aura, plate, body, this.face])
       .setDepth(1)
       .setScale(this.baseScale);
 
@@ -101,47 +119,168 @@ export class Monster {
     }
   }
 
+  /** A round scalloped doily plate the monster sits on. */
+  private drawPlate(g: Phaser.GameObjects.Graphics): void {
+    const cy = 58; // just under the feet
+    // scalloped tan edge
+    g.fillStyle(COLORS.violet, 1);
+    const scallops = 22;
+    const rx = 96;
+    const ry = 26;
+    for (let i = 0; i < scallops; i++) {
+      const a = (i / scallops) * Math.PI * 2;
+      g.fillCircle(Math.cos(a) * rx, cy + Math.sin(a) * ry, 7);
+    }
+    g.fillStyle(COLORS.violet, 1);
+    g.fillEllipse(0, cy, rx * 2, ry * 2);
+    // cream face of the plate
+    g.fillStyle(COLORS.plate, 1);
+    g.fillEllipse(0, cy, rx * 2 - 14, ry * 2 - 12);
+    // a faint inner ring
+    g.lineStyle(2, COLORS.violet, 0.5);
+    g.strokeEllipse(0, cy - 1, rx * 2 - 42, ry * 2 - 34);
+  }
+
   /** The blob itself — everything that never changes with mood. */
   private drawBody(g: Phaser.GameObjects.Graphics): void {
-    // feet nubs, tucked under so they read as "sitting"
+    if (MONSTER_STYLE === "classic") return this.drawBodyClassic(g);
+    return this.drawBodyMochi(g);
+  }
+
+  /** Eyes and mouth, redrawn per expression. */
+  private setFace(mood: Face): void {
+    if (MONSTER_STYLE === "classic") return this.setFaceClassic(mood);
+    return this.setFaceMochi(mood);
+  }
+
+  // --- bakery redesign: a strawberry-milk mochi dumpling --------------------
+
+  /**
+   * A soft, squat dumpling — a little wider than tall, the way a piped blob of
+   * dough settles. Strawberry-milk pink with a cream belly and a small cream
+   * swirl piped on top, so it reads as something from the same case as the
+   * food it eats.
+   */
+  private drawBodyMochi(g: Phaser.GameObjects.Graphics): void {
+    // little rounded feet peeking out, so it reads as sitting
+    g.fillStyle(COLORS.berryDeep, 1);
+    g.fillEllipse(-26, 52, 30, 16);
+    g.fillEllipse(26, 52, 30, 16);
+
+    // a soft deeper rim under the body gives it weight
+    g.fillStyle(COLORS.berryDeep, 1);
+    g.fillEllipse(0, 16, 128, 104);
+
+    // main body: broad and low, rounded like set dough
+    g.fillStyle(COLORS.berry, 1);
+    g.fillEllipse(0, 10, 120, 96);
+    g.fillEllipse(0, -14, 104, 84);
+
+    // a top highlight, the sheen on a glazed bun
+    g.fillStyle(0xf7a6bd, 1);
+    g.fillEllipse(-14, -34, 56, 30);
+
+    // cream belly patch
+    g.fillStyle(COLORS.plate, 1);
+    g.fillEllipse(0, 28, 74, 52);
+
+    // a cream swirl piped on top instead of the old leaf sprout
+    g.fillStyle(COLORS.plate, 1);
+    g.fillEllipse(0, -58, 26, 16);
+    g.fillEllipse(0, -66, 18, 12);
+    g.fillEllipse(0, -72, 10, 8);
+    // a cherry dot to finish it
+    g.fillStyle(COLORS.berryDeep, 1);
+    g.fillCircle(0, -78, 5);
+
+    // blush — nearly opaque so it doesn't average to grey over the pink
+    g.fillStyle(0xf94d7d, 0.5);
+    g.fillEllipse(-42, 4, 18, 11);
+    g.fillEllipse(42, 4, 18, 11);
+  }
+
+  /** Simple dot eyes and a tiny mouth — deliberately minimal and cute. */
+  private setFaceMochi(mood: Face): void {
+    const g = this.face;
+    g.clear();
+    const eyeY = -14;
+    const eyeX = 22;
+
+    if (mood === "eating") {
+      // happy upturned arcs and a small open mouth mid-bite
+      g.lineStyle(4, INK, 1);
+      for (const sx of [-1, 1]) {
+        g.beginPath();
+        g.arc(sx * eyeX, eyeY + 3, 9, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(340));
+        g.strokePath();
+      }
+      g.fillStyle(INK, 1);
+      g.fillEllipse(0, 14, 20, 17);
+      return;
+    }
+
+    if (mood === "refuse") {
+      // squeezed-shut eyes and a flat, unimpressed line
+      g.lineStyle(4, INK, 1);
+      for (const sx of [-1, 1]) {
+        g.beginPath();
+        g.arc(sx * eyeX, eyeY - 2, 9, Phaser.Math.DegToRad(20), Phaser.Math.DegToRad(160));
+        g.strokePath();
+      }
+      g.beginPath();
+      g.moveTo(-9, 12);
+      g.lineTo(9, 12);
+      g.strokePath();
+      return;
+    }
+
+    // happy: two simple dot eyes with a single bright highlight, and a small
+    // contented mouth. The dots are the whole charm — no iris, no shine stack.
+    g.fillStyle(INK, 1);
+    g.fillCircle(-eyeX, eyeY, 8);
+    g.fillCircle(eyeX, eyeY, 8);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(-eyeX - 3, eyeY - 3, 2.6);
+    g.fillCircle(eyeX - 3, eyeY - 3, 2.6);
+    g.lineStyle(3.5, INK, 1);
+    g.beginPath();
+    g.arc(0, 8, 9, Phaser.Math.DegToRad(25), Phaser.Math.DegToRad(155));
+    g.strokePath();
+  }
+
+  // --- the original teal sprout-blob, kept so it can be switched back -------
+
+  private drawBodyClassic(g: Phaser.GameObjects.Graphics): void {
     g.fillStyle(COLORS.tealDeep, 1);
     g.fillEllipse(-30, 50, 34, 18);
     g.fillEllipse(30, 50, 34, 18);
 
-    // a soft rim under the body gives it weight
     g.fillStyle(COLORS.tealDeep, 1);
     g.fillEllipse(0, 12, 124, 108);
 
-    // main body: wide at the bottom, narrower up top — egg-ish, not a ball
     g.fillStyle(COLORS.teal, 1);
     g.fillEllipse(0, 8, 116, 100);
     g.fillEllipse(0, -20, 96, 84);
 
-    // pale belly patch
     g.fillStyle(0xd8fbef, 1);
     g.fillEllipse(0, 26, 68, 52);
 
-    // a little sprout: stem plus one leaf, off to one side so it reads as a
-    // sprig rather than a pair of ears
     g.fillStyle(COLORS.tealDeep, 1);
     g.fillRect(-2, -62, 4, 12);
     g.fillEllipse(11, -66, 26, 14);
 
-    // Blush. Nearly opaque on purpose: a translucent pink averages with the
-    // bright teal underneath and comes out grey, which read as smudges.
     g.fillStyle(0xff7ba8, 0.92);
     g.fillEllipse(-41, 6, 20, 11);
     g.fillEllipse(41, 6, 20, 11);
   }
 
-  /** Eyes and mouth, redrawn per expression. */
-  private setFace(mood: Face): void {
+  private setFaceClassic(mood: Face): void {
     const g = this.face;
     g.clear();
     const eyeY = -20;
 
     if (mood === "happy") {
-      g.fillStyle(0x1b1f3d, 1);
+      g.fillStyle(INK, 1);
       g.fillCircle(-24, eyeY, 14);
       g.fillCircle(24, eyeY, 14);
       g.fillStyle(0xffffff, 1);
@@ -149,8 +288,7 @@ export class Monster {
       g.fillCircle(19, eyeY - 5, 5);
       g.fillCircle(-20, eyeY + 4, 2.5);
       g.fillCircle(28, eyeY + 4, 2.5);
-      // small contented mouth
-      g.lineStyle(3.5, 0x1b1f3d, 1);
+      g.lineStyle(3.5, INK, 1);
       g.beginPath();
       g.arc(0, 6, 11, Phaser.Math.DegToRad(20), Phaser.Math.DegToRad(160));
       g.strokePath();
@@ -158,21 +296,19 @@ export class Monster {
     }
 
     if (mood === "eating") {
-      // happy closed arcs, open round mouth
-      g.lineStyle(4, 0x1b1f3d, 1);
+      g.lineStyle(4, INK, 1);
       g.beginPath();
       g.arc(-24, eyeY + 4, 13, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(340));
       g.strokePath();
       g.beginPath();
       g.arc(24, eyeY + 4, 13, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(340));
       g.strokePath();
-      g.fillStyle(0x1b1f3d, 1);
+      g.fillStyle(INK, 1);
       g.fillEllipse(0, 12, 26, 22);
       return;
     }
 
-    // refuse: squeezed-shut eyes and a flat, unimpressed mouth
-    g.lineStyle(4, 0x1b1f3d, 1);
+    g.lineStyle(4, INK, 1);
     g.beginPath();
     g.arc(-24, eyeY - 4, 13, Phaser.Math.DegToRad(20), Phaser.Math.DegToRad(160));
     g.strokePath();

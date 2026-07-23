@@ -292,7 +292,7 @@ export class GameScene extends Phaser.Scene {
     this.lastDrop = null;
     this.claw.setDispenser(this.currentDrop());
     this.refreshUndo();
-    this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "undone", "#0e9d88");
+    this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "undone", "#4a3327");
   }
 
   private resolvePress(p: Phaser.Input.Pointer): void {
@@ -411,7 +411,7 @@ export class GameScene extends Phaser.Scene {
         resolution: TEXT_RES,
         fontSize: "26px",
         fontStyle: "700",
-        color: "#0e9d88",
+        color: "#d98324",
         align: "center",
         lineSpacing: 4,
       })
@@ -451,7 +451,7 @@ export class GameScene extends Phaser.Scene {
       "#d98324"
     );
     if (result.fresh >= result.tier * 20) {
-      this.floatText(this.monster.mouthX, this.monster.mouthY - 54, "fresh!", "#0e9d88");
+      this.floatText(this.monster.mouthX, this.monster.mouthY - 54, "fresh!", "#d98324");
     }
     if (result.leveledUp) {
       this.monster.grow(this.state.milestone);
@@ -481,11 +481,41 @@ export class GameScene extends Phaser.Scene {
       .setStrokeStyle(1, COLORS.ink, 0.25)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
-    this.add
-      .text(bx, by - 4, "↩", { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "19px", color: "#4a3327" })
-      .setOrigin(0.5)
-      .setDepth(31);
+    // A drawn undo arrow instead of the "↩" emoji, which rendered in the
+    // system emoji font and clashed with everything else. A ~260deg circular
+    // arrow with the arrowhead built from the arc's TANGENT so it points along
+    // the direction of travel — a first attempt with a hand-placed triangle
+    // came out as a lopsided hook.
+    const icon = this.add.graphics().setDepth(31);
+    const r = 8;
+    const cy = by - 3;
+    const a0 = Phaser.Math.DegToRad(300);
+    const a1 = Phaser.Math.DegToRad(40);
+    icon.lineStyle(2.4, COLORS.text, 1);
+    icon.beginPath();
+    const N = 32;
+    for (let i = 0; i <= N; i++) {
+      const a = a0 + (a1 - a0) * (i / N);
+      const x = bx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) icon.moveTo(x, y);
+      else icon.lineTo(x, y);
+    }
+    icon.strokePath();
+    // Arrowhead at the leading end, pointing along the tangent.
+    const ex = bx + Math.cos(a1) * r;
+    const ey = cy + Math.sin(a1) * r;
+    const tang = a1 + (Math.PI / 2) * Math.sign(a1 - a0);
+    const s = 2.4 * 1.6;
+    icon.fillStyle(COLORS.text, 1);
+    icon.fillTriangle(
+      ex + Math.cos(tang) * s,
+      ey + Math.sin(tang) * s,
+      ex + Math.cos(tang + Math.PI + 0.5) * s,
+      ey + Math.sin(tang + Math.PI + 0.5) * s,
+      ex + Math.cos(tang + Math.PI - 0.5) * s,
+      ey + Math.sin(tang + Math.PI - 0.5) * s
+    );
     this.undoLabel = this.add
       .text(bx, by + 22, "", { fontFamily: FONT,
         resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
@@ -651,7 +681,7 @@ export class GameScene extends Phaser.Scene {
     if (p !== null) {
       this.pocketDisc.setTexture(tierTexture(p.tier));
       this.pocketDisc.setDisplaySize(28, 28);
-      this.pocketStatus.setText("tap to use").setColor("#0e9d88");
+      this.pocketStatus.setText("tap to use").setColor("#4a3327");
       return;
     }
     // Charges banked. Bigger food costs more, so this is a budget, not a flag.
@@ -886,7 +916,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "14px",
-        color: "#0e9d88",
+        color: "#d98324",
       })
       .setOrigin(0.5)
       .setDepth(41);
