@@ -49,6 +49,21 @@ export class MenuScene extends Phaser.Scene {
     );
     g.fillRect(0, 0, WIDTH, HEIGHT);
 
+    // A little framing so the home screen reads as a bakery card rather than a
+    // bare gradient: a soft inset window border around the whole screen, and a
+    // rounded "display shelf" card behind the monster. Both are low-contrast
+    // tan on cream so they suggest structure without boxing the content in.
+    const frame = this.add.graphics();
+    frame.lineStyle(2, COLORS.violet, 0.35);
+    frame.strokeRoundedRect(12, 12, WIDTH - 24, HEIGHT - 24, 22);
+    frame.lineStyle(1, COLORS.violet, 0.2);
+    frame.strokeRoundedRect(17, 17, WIDTH - 34, HEIGHT - 34, 19);
+    // the monster's shelf
+    frame.fillStyle(COLORS.cardFill, 0.5);
+    frame.fillRoundedRect(WIDTH / 2 - 118, 128, 236, 220, 26);
+    frame.lineStyle(1.5, COLORS.violet, 0.35);
+    frame.strokeRoundedRect(WIDTH / 2 - 118, 128, 236, 220, 26);
+
     // Best score leads: it's the number the player is here to beat.
     this.bestText = this.add
       .text(WIDTH / 2, 40, "", {

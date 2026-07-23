@@ -5,7 +5,6 @@ import { GameOverReason } from "../systems/GameState";
 import { Save } from "../systems/Save";
 import { ModeId } from "../systems/Modes";
 import { makeButton } from "../objects/Button";
-import { tierTexture } from "../data/foods";
 import { Cloud } from "../systems/Cloud";
 import { ReplayEvent } from "../systems/Replay";
 
@@ -139,11 +138,13 @@ export class GameOverScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    // Run summary — what actually happened, not just the number.
+    // Run summary — what actually happened, not just the number. The panel is
+    // sized to the single stat row now that the "biggest food" trophy is gone
+    // (it wasn't telling the player anything the SIZE column didn't).
     const rowY = top + 152;
     const panel = this.add.graphics();
     panel.fillStyle(COLORS.ink, 0.12);
-    panel.fillRoundedRect(WIDTH / 2 - 140, rowY - 26, 280, 84, 14);
+    panel.fillRoundedRect(WIDTH / 2 - 140, rowY - 26, 280, 56, 14);
 
     const cols = [
       { label: "FED", value: `${data.feeds}` },
@@ -171,31 +172,8 @@ export class GameOverScene extends Phaser.Scene {
         .setOrigin(0.5);
     });
 
-    // Biggest food built, shown as the actual disc — the trophy of the run.
-    if (data.biggestTier > 0) {
-      this.add
-        .text(WIDTH / 2 - 34, rowY + 40, "BIGGEST", {
-          fontFamily: FONT,
-        resolution: TEXT_RES,
-          fontSize: "10px",
-          color: "#9b7a5f",
-        })
-        .setOrigin(0.5);
-      const disc = this.add.image(WIDTH / 2 + 22, rowY + 40, tierTexture(data.biggestTier));
-      disc.setDisplaySize(22, 22);
-      this.add
-        .text(WIDTH / 2 + 46, rowY + 40, `#${data.biggestTier}`, {
-          fontFamily: FONT,
-        resolution: TEXT_RES,
-          fontSize: "13px",
-          fontStyle: "600",
-          color: "#4a3327",
-        })
-        .setOrigin(0.5);
-    }
-
     this.add
-      .text(WIDTH / 2, rowY + 78, `${name} reached ${milestoneName(data.milestone)} size`, {
+      .text(WIDTH / 2, rowY + 58, `${name} reached ${milestoneName(data.milestone)} size`, {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "13px",
@@ -207,7 +185,7 @@ export class GameOverScene extends Phaser.Scene {
     this.time.delayedCall(400, () => {
       makeButton(this, {
         x: WIDTH / 2,
-        y: rowY + 132,
+        y: rowY + 112,
         label: "Play again",
         primary: true,
         onClick: () => {
@@ -218,7 +196,7 @@ export class GameOverScene extends Phaser.Scene {
       });
       makeButton(this, {
         x: WIDTH / 2,
-        y: rowY + 196,
+        y: rowY + 176,
         label: "Main menu",
         onClick: () => {
           this.scene.stop();

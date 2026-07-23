@@ -23,6 +23,58 @@ const SWIPE_UP = 55;
 /** A finger resting on a food, before we know what it meant. */
 type Press = { food: Food; x: number; y: number };
 
+/**
+ * Draw an undo glyph — a counter-clockwise circular arrow — centred on (cx, cy).
+ *
+ * Kept as a plain function so the geometry can be reasoned about in one place.
+ * The arc opens at the top and sweeps counter-clockwise; the arrowhead sits on
+ * the upper-left tip pointing left-ish along the tangent, which is the shape
+ * people read as "go back". The head is a filled triangle deliberately larger
+ * than the stroke so it reads as an arrow, not a hook, at ~16px.
+ */
+function drawUndoGlyph(
+  g: Phaser.GameObjects.Graphics,
+  cx: number,
+  cy: number,
+  r: number,
+  color: number
+): void {
+  const lw = Math.max(2, r * 0.32);
+  // Sweep clockwise (canvas angles) from the upper-right tip down and around to
+  // the upper-left tip, leaving a gap across the top.
+  const a0 = Phaser.Math.DegToRad(-55);
+  const a1 = Phaser.Math.DegToRad(-305); // == +55 going the long way round
+  g.lineStyle(lw, color, 1);
+  g.beginPath();
+  const N = 40;
+  for (let i = 0; i <= N; i++) {
+    const a = a0 + (a1 - a0) * (i / N);
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    if (i === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.strokePath();
+  // Arrowhead at the leading (upper-left) tip, along the tangent of travel.
+  const tipX = cx + Math.cos(a1) * r;
+  const tipY = cy + Math.sin(a1) * r;
+  const tang = a1 - Math.PI / 2; // direction of travel at the tip
+  const head = r * 0.72;
+  const tipAX = tipX + Math.cos(tang) * head;
+  const tipAY = tipY + Math.sin(tang) * head;
+  const back = tang + Math.PI;
+  const spread = 0.6;
+  g.fillStyle(color, 1);
+  g.fillTriangle(
+    tipAX,
+    tipAY,
+    tipX + Math.cos(back + spread) * head,
+    tipY + Math.sin(back + spread) * head,
+    tipX + Math.cos(back - spread) * head,
+    tipY + Math.sin(back - spread) * head
+  );
+}
+
 export class GameScene extends Phaser.Scene {
   /**
    * Is there a run the player could still come back to? Set when a game
@@ -482,40 +534,15 @@ export class GameScene extends Phaser.Scene {
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
     // A drawn undo arrow instead of the "↩" emoji, which rendered in the
-    // system emoji font and clashed with everything else. A ~260deg circular
-    // arrow with the arrowhead built from the arc's TANGENT so it points along
-    // the direction of travel — a first attempt with a hand-placed triangle
-    // came out as a lopsided hook.
+    // system emoji font and clashed with everything else.
+    //
+    // Centred ON the button (earlier it was nudged up 3px and read as
+    // off-centre), and the arrowhead is now a bold triangle sized so it reads
+    // as an arrow rather than a thin hook at this size. A ~290deg arc opening at
+    // the top, with the head on the upper-LEFT tip pointing left — the classic
+    // "counter-clockwise = go back" reading.
     const icon = this.add.graphics().setDepth(31);
-    const r = 8;
-    const cy = by - 3;
-    const a0 = Phaser.Math.DegToRad(300);
-    const a1 = Phaser.Math.DegToRad(40);
-    icon.lineStyle(2.4, COLORS.text, 1);
-    icon.beginPath();
-    const N = 32;
-    for (let i = 0; i <= N; i++) {
-      const a = a0 + (a1 - a0) * (i / N);
-      const x = bx + Math.cos(a) * r;
-      const y = cy + Math.sin(a) * r;
-      if (i === 0) icon.moveTo(x, y);
-      else icon.lineTo(x, y);
-    }
-    icon.strokePath();
-    // Arrowhead at the leading end, pointing along the tangent.
-    const ex = bx + Math.cos(a1) * r;
-    const ey = cy + Math.sin(a1) * r;
-    const tang = a1 + (Math.PI / 2) * Math.sign(a1 - a0);
-    const s = 2.4 * 1.6;
-    icon.fillStyle(COLORS.text, 1);
-    icon.fillTriangle(
-      ex + Math.cos(tang) * s,
-      ey + Math.sin(tang) * s,
-      ex + Math.cos(tang + Math.PI + 0.5) * s,
-      ey + Math.sin(tang + Math.PI + 0.5) * s,
-      ex + Math.cos(tang + Math.PI - 0.5) * s,
-      ey + Math.sin(tang + Math.PI - 0.5) * s
-    );
+    drawUndoGlyph(icon, bx, by, 8, COLORS.text);
     this.undoLabel = this.add
       .text(bx, by + 22, "", { fontFamily: FONT,
         resolution: TEXT_RES, fontSize: "10px", color: "#9b7a5f" })
@@ -901,7 +928,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(40)
       .setInteractive();
     const txt = this.add
-      .text(WIDTH / 2, HEIGHT / 2 - 30, lines.join("\n"), {
+      .text(WIDTH / 2, HEIGHT / 2 - 40, lines.join("\n"), {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "15px",
@@ -911,8 +938,11 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(41);
+    // Sit "tap to close" a clear gap BELOW the actual text block rather than at
+    // a guessed y — the instructions are long enough that a fixed offset put it
+    // touching the last line.
     const tap = this.add
-      .text(WIDTH / 2, HEIGHT / 2 + 190, "tap to close", {
+      .text(WIDTH / 2, txt.getBounds().bottom + 34, "tap to close", {
         fontFamily: FONT,
         resolution: TEXT_RES,
         fontSize: "14px",
