@@ -17,6 +17,8 @@
     <div class="row" id="big"></div>
     <h3>in-game size (44px, cropped like BootScene)</h3>
     <div class="row" id="small"></div>
+    <h3>backgrounds (half size)</h3>
+    <div class="row" id="bgs"></div>
     <h3>detail</h3>
     <div class="row" id="detail"></div>
     <h3>monster body</h3>
@@ -24,6 +26,26 @@
     <script type="module">
       import { REF_ART, paintRef } from "/src/data/refArt.ts";
       import { paintMonsterBody, BODY_ART } from "/src/data/monsterArt.ts";
+      import { paintBg, BG_W, BG_H, BG_LAST } from "/src/data/bgArt.ts";
+
+      const BG_NAMES = ["bakery (to dog)", "garden (to human)", "street (to car)",
+        "rooftops (to house)", "skyline (to building)", "above town (to town)",
+        "patchwork (to city)", "stratosphere (to country)", "low orbit (to continent)",
+        "space (to planet)", "solar system", "galaxies (to universe)",
+        "bubbles (to multiverse)", "dimension"];
+      for (let i = 0; i <= BG_LAST; i++) {
+        const wrap = document.createElement("div");
+        wrap.className = "cell";
+        const c = document.createElement("canvas");
+        c.width = BG_W; c.height = BG_H;
+        c.style.width = BG_W / 2 + "px";
+        paintBg(c.getContext("2d"), i, 1);
+        wrap.appendChild(c);
+        const t = document.createElement("div");
+        t.textContent = i + " " + BG_NAMES[i];
+        wrap.appendChild(t);
+        document.getElementById("bgs").appendChild(wrap);
+      }
 
       function make(i, size, parent, label) {
         const wrap = document.createElement("div");

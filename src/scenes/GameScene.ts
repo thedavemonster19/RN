@@ -1,5 +1,15 @@
 import Phaser from "phaser";
-import { GAME, BIN, COLORS, MONSTER, GRAVITY_SCALE, UI_FONT, TEXT_RES } from "../config";
+import {
+  GAME,
+  BIN,
+  COLORS,
+  MONSTER,
+  GRAVITY_SCALE,
+  UI_FONT,
+  TEXT_RES,
+  RENDER_SCALE,
+} from "../config";
+import { paintBg, bgKey, BG_W, BG_H, BG_LAST } from "../data/bgArt";
 import { FoodPile, Food } from "../objects/FoodPile";
 import { FoodType, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
@@ -112,6 +122,8 @@ export class GameScene extends Phaser.Scene {
   private binGfx!: Phaser.GameObjects.Graphics;
   /** Redrawn every frame: the bin edge glowing as the pile nears the line. */
   private dangerGfx!: Phaser.GameObjects.Graphics;
+  /** The milestone environment behind everything — see showBackground. */
+  private bgImage?: Phaser.GameObjects.Image;
   /** Every economic action this run, for server-side verification. */
   private replayLog: ReplayEvent[] = [];
   /** The last drop, while it's still undoable. `foods` holds both pieces under
@@ -512,6 +524,8 @@ export class GameScene extends Phaser.Scene {
     if (result.leveledUp) {
       this.monster.grow(this.state.milestone);
       this.monster.setSize(currentSize(this.state.milestone));
+      // The world falls away behind it — the camera "pulling back" one stage.
+      this.showBackground(this.state.milestone, true);
       this.drawBin(); // the danger line just crept down
       Sfx.grow();
       this.celebrate();
@@ -1098,15 +1112,67 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
-    const g = this.add.graphics().setDepth(-10);
-    g.fillGradientStyle(
-      COLORS.bgTop,
-      COLORS.bgTop,
-      COLORS.bgBottom,
-      COLORS.bgBottom,
-      1
+    // Leftover stages from a previous run (a restart arrives here with the old
+    // run's last background still baked) — drop them before baking fresh.
+    for (let i = 0; i <= BG_LAST; i++) {
+      if (this.textures.exists(`bg${i}`)) this.textures.remove(`bg${i}`);
+    }
+    this.showBackground(this.state.milestone, false);
+  }
+
+  /** Bake the environment for a milestone if it isn't already a texture. */
+  private ensureBg(milestone: number): string {
+    const key = bgKey(milestone);
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(
+      key,
+      BG_W * RENDER_SCALE,
+      BG_H * RENDER_SCALE
     );
-    g.fillRect(0, 0, GAME.WIDTH, GAME.HEIGHT);
+    if (!tex) return key;
+    paintBg(tex.getContext(), milestone, RENDER_SCALE);
+    tex.refresh();
+    return key;
+  }
+
+  /**
+   * Show the environment for a milestone — the world the monster has grown
+   * into. On a level-up the new stage crossfades over the old, which reads as
+   * the camera pulling back; the old texture is then dropped so only one or
+   * two of these retina-sized canvases ever occupy GPU memory.
+   */
+  private showBackground(milestone: number, fade: boolean): void {
+    const key = this.ensureBg(milestone);
+    if (!this.bgImage) {
+      this.bgImage = this.add
+        .image(GAME.WIDTH / 2, GAME.HEIGHT / 2, key)
+        .setDisplaySize(GAME.WIDTH, GAME.HEIGHT)
+        .setDepth(-10);
+      return;
+    }
+    const old = this.bgImage;
+    if (old.texture.key === key) return;
+    if (!fade) {
+      old.setTexture(key).setDisplaySize(GAME.WIDTH, GAME.HEIGHT);
+      return;
+    }
+    const oldKey = old.texture.key;
+    const next = this.add
+      .image(GAME.WIDTH / 2, GAME.HEIGHT / 2, key)
+      .setDisplaySize(GAME.WIDTH, GAME.HEIGHT)
+      .setDepth(-10)
+      .setAlpha(0);
+    this.bgImage = next;
+    this.tweens.add({
+      targets: next,
+      alpha: 1,
+      duration: 900,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        old.destroy();
+        if (this.textures.exists(oldKey)) this.textures.remove(oldKey);
+      },
+    });
   }
 
   /**

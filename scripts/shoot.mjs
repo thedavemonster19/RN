@@ -1,7 +1,10 @@
 /**
  * Screenshot the built game from headless Chrome, optionally tapping first.
  *
- *   node scripts/shoot.mjs <out.png> [taps] [url]
+ *   node scripts/shoot.mjs <out.png> [taps] [url] [evalJs]
+ *
+ * `evalJs` runs in the page after the taps (e.g. to jump the game to a later
+ * milestone before the shot).
  *
  * `taps` is a semicolon-separated list of "x,y" CSS-pixel points, each clicked
  * with a short settle after it. Chrome's own --screenshot flag can't be used:
@@ -24,6 +27,7 @@ const taps = (process.argv[3] || "")
   .filter(Boolean)
   .map((p) => p.split(",").map(Number));
 const url = process.argv[4] || pathToFileURL(resolve("dist/index.html")).href;
+const evalJs = process.argv[5] || "";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -100,6 +104,12 @@ try {
       await sleep(60);
     }
     await sleep(1400);
+  }
+  if (evalJs) {
+    const r = await send("Runtime.evaluate", { expression: evalJs, returnByValue: true });
+    if (r.exceptionDetails) console.log("EVAL ERROR:", r.exceptionDetails.text);
+    else console.log("eval:", JSON.stringify(r.result?.value));
+    await sleep(1200);
   }
   await sleep(600);
 
