@@ -3,7 +3,6 @@ import { TIER_RADII } from "../data/foods";
 import { paintFood } from "../data/foodArt";
 import { FOOD_SHEET, SHEET_CELL, SHEET_COLS } from "../data/foodSheet";
 import { loadUiFont } from "../data/uiFont";
-import { REF_ART, paintRef, refKey } from "../data/refArt";
 import { BODY_ART, paintMonsterBody } from "../data/monsterArt";
 
 /**
@@ -45,7 +44,6 @@ export class BootScene extends Phaser.Scene {
   private finish(sheet: HTMLImageElement | null): void {
     const usable = sheet && sheet.width > SHEET_CELL ? sheet : null;
     TIER_RADII.forEach((r, i) => this.makeFood(`food${i + 1}`, i + 1, r, usable));
-    this.makeScaleRefs();
     this.makeMonsterBody();
     this.scene.start("Menu");
   }
@@ -71,57 +69,6 @@ export class BootScene extends Phaser.Scene {
     ctx.clearRect(0, 0, BODY_ART.w * SCALE, BODY_ART.h * SCALE);
     paintMonsterBody(ctx, SCALE);
     tex.refresh();
-  }
-
-  /**
-   * Paint the scale-reference illustrations and crop each to its opaque bounds.
-   *
-   * Cropping is what makes the sizing honest: the sprite becomes the artwork
-   * itself, so setting its display height sets the OBJECT's height. Without it a
-   * short wide car and a tall narrow tower drawn in the same square box would
-   * come out the same height on screen.
-   *
-   * Painted at 512 because the largest reference is shown ~142 game px tall and
-   * the canvas renders at up to 3x device pixels — anything smaller is visibly
-   * soft on a phone.
-   */
-  private makeScaleRefs(): void {
-    const S = 512;
-    const scratch = document.createElement("canvas");
-    scratch.width = S;
-    scratch.height = S;
-    const sctx = scratch.getContext("2d", { willReadFrequently: true });
-    if (!sctx) return;
-
-    REF_ART.forEach((_art, i) => {
-      sctx.clearRect(0, 0, S, S);
-      paintRef(sctx, i, S);
-
-      const data = sctx.getImageData(0, 0, S, S).data;
-      let x0 = S;
-      let y0 = S;
-      let x1 = -1;
-      let y1 = -1;
-      for (let y = 0; y < S; y++) {
-        for (let x = 0; x < S; x++) {
-          if (data[(y * S + x) * 4 + 3] < 8) continue;
-          if (x < x0) x0 = x;
-          if (x > x1) x1 = x;
-          if (y < y0) y0 = y;
-          if (y > y1) y1 = y;
-        }
-      }
-      if (x1 < 0) return; // painted nothing — leave the texture absent
-
-      const w = x1 - x0 + 1;
-      const h = y1 - y0 + 1;
-      const key = refKey(i);
-      if (this.textures.exists(key)) this.textures.remove(key);
-      const tex = this.textures.createCanvas(key, w, h);
-      if (!tex) return;
-      tex.getContext().drawImage(scratch, x0, y0, w, h, 0, 0, w, h);
-      tex.refresh();
-    });
   }
 
   /** One tier of food, drawn into a canvas texture at its true size. */

@@ -1,7 +1,5 @@
 import Phaser from "phaser";
 import { COLORS, UI_FONT, TEXT_RES } from "../config";
-import { milestoneName, currentMetres, targetMetres } from "../data/milestones";
-import { refKey } from "../data/refArt";
 import { BODY_ART } from "../data/monsterArt";
 
 /** Scale at the starting (newborn) size, and how big it's allowed to get.
@@ -36,9 +34,6 @@ const MONSTER_STYLE: "mochi" | "classic" = "mochi";
 /** Eye/mouth ink — warm brown to sit in the cream-and-brown theme, not navy. */
 const INK = 0x4a3327;
 
-/** Total drawn height of the monster in body units (cherry top to feet). */
-const BODY_SPAN = 144;
-
 /**
  * One aura colour per size milestone, cycling once it runs off the end. Warm
  * bakery tones now — honey, berry, caramel — so a level-up reads as a visible
@@ -66,9 +61,6 @@ export class Monster {
   private auraPulse?: Phaser.Tweens.Tween;
   private face: Phaser.GameObjects.Graphics;
   private sizeLabel: Phaser.GameObjects.Text;
-  /** A fixed-size figure the monster is compared against — see drawScaleRef. */
-  private scaleRef?: Phaser.GameObjects.Image;
-  private scaleRefLabel?: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
   private monsterName = "";
   private sizeText = "";
@@ -117,17 +109,6 @@ export class Monster {
 
     this.setFace("happy");
     this.layoutLabels();
-
-    // The scale reference is off by default (the menu doesn't want it); a scene
-    // that shows the monster growing turns it on.
-    this.buildScaleRef();
-    this.setScaleRefVisible(false);
-  }
-
-  /** Show or hide the scale reference beside the monster. */
-  setScaleRefVisible(visible: boolean): void {
-    this.scaleRef?.setVisible(visible);
-    this.scaleRefLabel?.setVisible(visible);
   }
 
   /**
@@ -150,80 +131,6 @@ export class Monster {
       g.fillStyle(color, 0.1 * (1 - t) + 0.03);
       g.fillEllipse(0, 6, spread * 2 * t, spread * 1.85 * t);
     }
-  }
-
-  /**
-   * The thing the monster is measured against, standing on its ground line.
-   *
-   * A single fixed baker only works while the monster is person-sized — once
-   * it's a Town there is no sense in comparing it to a man. So the REFERENCE
-   * swaps up a ladder as the monster levels (baker → house → tower → town →
-   * planet → galaxy) while each one is drawn at the same modest footprint. The
-   * monster visibly outgrows each reference, then the reference is replaced by
-   * something far bigger and the chase starts again — which is what keeps the
-   * sense of scale going long after the sprite has hit its size cap.
-   *
-   * Drawn OUTSIDE the scaling container so it never scales with the monster.
-   */
-  private buildScaleRef(): void {
-    // Bottom-centre origin so the artwork stands ON the ground line whatever
-    // its height.
-    this.scaleRef = this.scene.add
-      .image(this.x - 150, this.y + 58, refKey(0))
-      .setOrigin(0.5, 1)
-      .setDepth(0);
-    this.scaleRefLabel = this.scene.add
-      .text(this.x - 150, this.y + 70, "", {
-        fontFamily: UI_FONT,
-        resolution: TEXT_RES,
-        fontSize: "8px",
-        color: "#9b7a5f",
-      })
-      .setOrigin(0.5)
-      .setDepth(0)
-      .setName("scaleRefLabel");
-    this.drawScaleRef(0);
-  }
-
-  /**
-   * Draw the thing the monster is growing TOWARD, beside it, sized from the
-   * real-world ratio between them.
-   *
-   * The reference is indexed by milestone, so it is always exactly what the HUD
-   * announces — a City when it says GROWING TO CITY. The previous version chose
-   * from a shorter list by size, which skipped Country and Continent outright
-   * and stood a planet beside a monster only growing to a City.
-   *
-   * The ratio is LOG-COMPRESSED rather than literal. Real ratios here run from
-   * about 3x (Dog to Human) to 60,000x (Building to Town) — the large ones
-   * cannot be drawn beside a 140px monster at all. Compressing log10 into a
-   * 1.25x..2.4x band keeps the ORDER honest: the monster is always smaller than
-   * what it is chasing, and a huge leap looks bigger than a small one.
-   */
-  private drawScaleRef(milestone: number): void {
-    const img = this.scaleRef;
-    if (!img) return;
-
-    const m = Math.max(0, milestone);
-    img.setTexture(refKey(m));
-
-    const monsterScale = Math.min(BASE_SCALE + m * 0.09, MAX_SCALE);
-    const monsterPx = BODY_SPAN * monsterScale;
-    const trueRatio = Math.max(1, targetMetres(m) / currentMetres(m));
-    const compressed = 1.25 + 1.15 * Math.min(1, Math.log10(trueRatio) / 3);
-    // Capped at 142: the gap between the bin floor (470) and the shared ground
-    // line (y+58 = 618) is 148px, and a taller reference would poke into the
-    // bin. It still exceeds the monster's own max of ~137px.
-    const heightPx = Math.max(38, Math.min(monsterPx * compressed, 142));
-
-    // Keep the artwork's own aspect — the texture is cropped to its bounds, so
-    // a car stays short and wide and a tower tall and narrow.
-    const src = img.texture.getSourceImage() as { width: number; height: number };
-    const aspect = src && src.height ? src.width / src.height : 1;
-    img.setDisplaySize(heightPx * aspect, heightPx);
-    img.setPosition(this.x - 150, this.y + 58);
-
-    this.scaleRefLabel?.setText(milestoneName(m).toLowerCase());
   }
 
   /**
@@ -401,7 +308,6 @@ export class Monster {
     // New size, new colour: flare the aura bright for a beat, then settle into
     // a slow breathing loop so the level-up is felt and then lives on quietly.
     this.drawAura(milestone);
-    this.drawScaleRef(milestone);
     this.auraPulse?.remove();
     this.aura.setAlpha(0);
     this.scene.tweens.add({
@@ -434,7 +340,6 @@ export class Monster {
     this.baseScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
     this.container.setScale(this.baseScale);
     this.drawAura(milestone);
-    this.drawScaleRef(milestone);
     if (milestone > 0) this.startAuraBreathing();
     this.layoutLabels();
   }

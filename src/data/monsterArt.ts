@@ -7,10 +7,10 @@
  * outline. Stroking each one draws the seams between them, which is exactly why
  * the old body read as shapes rather than a character.
  *
- * FLAT STYLE, matching the scale references in refArt.ts: no gradients, no
- * sheen, no soft contact shadow. Colour is flat and the form is carried by the
- * silhouette and the outline. Solid areas of a second tone are allowed where
- * they are a real feature (the belly, the blush) — never as shading on a curve.
+ * FLAT STYLE: no gradients, no sheen, no soft contact shadow. Colour is flat
+ * and the form is carried by the silhouette and the outline. Solid areas of a
+ * second tone are allowed where they are a real feature (the belly, the
+ * blush) — never as shading on a curve.
  *
  * Only the body is a texture. The FACE stays as Graphics drawn on top, because
  * it swaps between expressions every time the monster eats or refuses — see

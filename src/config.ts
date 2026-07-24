@@ -132,13 +132,10 @@ export const BIN = {
  *  Kept high enough that a fully-grown monster's name label still clears the
  *  fed counter and the food-chain bar along the bottom. */
 export const MONSTER = {
-  /**
-   * Right of centre on purpose: the scale reference stands to its LEFT, and a
-   * centred monster left too little room for the big references (a planet drawn
-   * to a believable ratio is ~140px wide). Off-centre reads as a comparison
-   * scene rather than a mistake, and the pair is balanced across the screen.
-   */
-  x: 236,
+  // Centred: it used to sit right of centre to leave room for the scale
+  // reference on its left, but that reference is gone (its art survives in
+  // data/refArt for whenever growth gets a new visual).
+  x: 200,
   y: 560,
 } as const;
 

@@ -1,6 +1,14 @@
 /**
  * The scale-reference illustrations — dog, house, city, planet and the rest.
  *
+ * CURRENTLY UNUSED BY THE GAME (2026-07-24): the user pulled the scale
+ * reference out of the game scene to rethink how growth should be shown, so
+ * nothing imports this file and it is tree-shaken out of the bundle. It is
+ * kept — like the classic monster in Monster.ts — so any future design that
+ * wants these fourteen paintings can plug straight back in via BootScene
+ * (the old makeScaleRefs cropper lives in git history at 46c9dd4). The
+ * art-sheet.html dev harness still renders it.
+ *
  * FLAT VECTOR STYLE. No gradients, no glows, no soft shadows, no alpha washes.
  * An earlier pass used all four and read as painterly and fussy; this one gets
  * its quality from the two things that actually carry flat art:
