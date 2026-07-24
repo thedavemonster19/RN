@@ -210,28 +210,6 @@ function bakery(ctx: Ctx, sx: number, feet: number): void {
     }
   }
   ctx.globalAlpha = 1;
-  // a framed picture and a jar shelf — the wall needed something to be a wall
-  ctx.fillStyle = "#c9a271";
-  ctx.fillRect(296, 396, 62, 50);
-  ctx.fillStyle = "#f7e5c2";
-  ctx.fillRect(301, 401, 52, 40);
-  ctx.fillStyle = "#e89bb2";
-  ctx.beginPath();
-  ctx.arc(322, 419, 7, 0, TAU);
-  ctx.arc(333, 419, 7, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = "#c9a271";
-  ctx.fillRect(38, 428, 84, 6);
-  for (const [jx, jw, jh] of [
-    [48, 14, 18],
-    [68, 18, 24],
-    [92, 14, 15],
-  ] as [number, number, number][]) {
-    ctx.fillStyle = "#dfb98a";
-    ctx.fillRect(jx, 428 - jh, jw, jh);
-    ctx.fillStyle = "#b98d62";
-    ctx.fillRect(jx - 1, 428 - jh - 3, jw + 2, 4);
-  }
   const seam = feet - 6;
   ctx.fillStyle = "#f6dead";
   ctx.fillRect(0, seam - 44, BG_W, 44);
@@ -256,13 +234,47 @@ function bakery(ctx: Ctx, sx: number, feet: number): void {
   ctx.beginPath();
   ctx.ellipse(sx, feet + 5, 46, 9.5, 0, 0, TAU);
   ctx.stroke();
-  // its food bowl, off by the wall on the empty side
+  // Floor-level props on the empty side: a flour sack slumped against the
+  // wall, a rolling pin leaning on it, and the pet's food bowl. (A jar shelf
+  // and a framed portrait were tried on the wall first — mid-wall props ended
+  // up half-hidden behind the bin panel and read as floating clutter. On this
+  // stage everything sits on the floor, where the monster lives.)
+  ctx.fillStyle = "#f4e3c4";
+  ctx.beginPath();
+  ctx.moveTo(306, feet + 16);
+  ctx.quadraticCurveTo(302, feet - 22, 314, feet - 28);
+  ctx.quadraticCurveTo(320, feet - 34, 328, feet - 28);
+  ctx.quadraticCurveTo(340, feet - 22, 338, feet + 16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#dbc49c";
+  ctx.fillRect(311, feet - 31, 20, 5);
+  ctx.strokeStyle = "#dbc49c";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(308, feet - 6);
+  ctx.quadraticCurveTo(322, feet - 12, 336, feet - 6);
+  ctx.stroke();
+  // rolling pin leaning against the sack
+  ctx.strokeStyle = "#c9995e";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(352, feet + 14);
+  ctx.lineTo(336, feet - 24);
+  ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(336, feet - 24);
+  ctx.lineTo(332, feet - 34);
+  ctx.stroke();
+  // the pet's food bowl
   ctx.fillStyle = "#d98da8";
   ctx.beginPath();
-  ctx.moveTo(292, feet + 2);
-  ctx.lineTo(324, feet + 2);
-  ctx.lineTo(318, feet + 14);
-  ctx.lineTo(298, feet + 14);
+  ctx.moveTo(258, feet + 4);
+  ctx.lineTo(290, feet + 4);
+  ctx.lineTo(284, feet + 16);
+  ctx.lineTo(264, feet + 16);
   ctx.closePath();
   ctx.fill();
 }
