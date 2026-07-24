@@ -210,19 +210,41 @@ function bakery(ctx: Ctx, sx: number, feet: number): void {
     }
   }
   ctx.globalAlpha = 1;
+  // a framed picture and a jar shelf — the wall needed something to be a wall
+  ctx.fillStyle = "#c9a271";
+  ctx.fillRect(296, 396, 62, 50);
+  ctx.fillStyle = "#f7e5c2";
+  ctx.fillRect(301, 401, 52, 40);
+  ctx.fillStyle = "#e89bb2";
+  ctx.beginPath();
+  ctx.arc(322, 419, 7, 0, TAU);
+  ctx.arc(333, 419, 7, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#c9a271";
+  ctx.fillRect(38, 428, 84, 6);
+  for (const [jx, jw, jh] of [
+    [48, 14, 18],
+    [68, 18, 24],
+    [92, 14, 15],
+  ] as [number, number, number][]) {
+    ctx.fillStyle = "#dfb98a";
+    ctx.fillRect(jx, 428 - jh, jw, jh);
+    ctx.fillStyle = "#b98d62";
+    ctx.fillRect(jx - 1, 428 - jh - 3, jw + 2, 4);
+  }
   const seam = feet - 6;
-  ctx.fillStyle = "#f8e2b6";
+  ctx.fillStyle = "#f6dead";
   ctx.fillRect(0, seam - 44, BG_W, 44);
-  ctx.fillStyle = "#e3c48e";
-  ctx.fillRect(0, seam - 47, BG_W, 4);
-  ctx.fillStyle = "#eccf9e";
+  ctx.fillStyle = "#d8b57e";
+  ctx.fillRect(0, seam - 48, BG_W, 5);
+  ctx.fillStyle = "#e8c890";
   for (let x = 14; x < BG_W; x += 46) ctx.fillRect(x, seam - 36, 30, 28);
-  ctx.fillStyle = "#e9c592";
+  ctx.fillStyle = "#e5bd82";
   ctx.fillRect(0, seam, BG_W, BG_H - seam);
-  ctx.fillStyle = "#d9ae74";
-  ctx.globalAlpha = 0.55;
-  ctx.fillRect(0, seam, BG_W, 2.5);
-  for (const x of [70, 215, 285, 350]) ctx.fillRect(x, seam + 4, 2, BG_H - seam);
+  ctx.fillStyle = "#c9995e";
+  ctx.globalAlpha = 0.7;
+  ctx.fillRect(0, seam, BG_W, 3);
+  for (const x of [70, 215, 285, 350]) ctx.fillRect(x, seam + 5, 2, BG_H - seam);
   ctx.globalAlpha = 1;
   // the pet's rug
   ctx.fillStyle = "#f2c7d4";
@@ -264,13 +286,18 @@ function garden(ctx: Ctx, _sx: number, feet: number): void {
       [280, feet + 4],
       [400, feet],
     ],
-    "#c9d99e"
+    "#bcd08a"
   );
-  // bushes along the back
-  ctx.fillStyle = "#b5cc8d";
+  // bushes along the back, two-tone so they read as bushes not blobs
+  ctx.fillStyle = "#94b06c";
   ctx.beginPath();
   ctx.ellipse(60, feet - 2, 42, 22, 0, 0, TAU);
   ctx.ellipse(150, feet + 2, 34, 18, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#aec886";
+  ctx.beginPath();
+  ctx.ellipse(52, feet - 10, 26, 13, -0.1, 0, TAU);
+  ctx.ellipse(144, feet - 5, 20, 10, 0.1, 0, TAU);
   ctx.fill();
   // flowers in the monster's exact pink — the blend-in gag
   for (const [fx, fy, fr] of [
@@ -315,24 +342,50 @@ function street(ctx: Ctx, sx: number, feet: number): void {
     [372, 70, kerb - 74, 0],
   ];
   for (const [hx, hw, hy, deep] of houses) {
-    ctx.fillStyle = deep ? "#eed6ab" : "#f4e0b8";
+    ctx.fillStyle = deep ? "#ecd2a2" : "#f4e0b8";
     ctx.fillRect(hx, hy, hw, kerb - hy);
-    ctx.fillStyle = deep ? "#d8ab7c" : "#e0b98c";
+    ctx.fillStyle = deep ? "#c9986a" : "#d6a877";
     ctx.beginPath();
     ctx.moveTo(hx - 6, hy);
     ctx.lineTo(hx + hw / 2, hy - 26);
     ctx.lineTo(hx + hw + 6, hy);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#fff3d6";
-    ctx.globalAlpha = 0.8;
+    // a lit window and a front door each
+    ctx.fillStyle = "#ffd98f";
     ctx.fillRect(hx + hw / 2 - 7, hy + 14, 14, 16);
-    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#c9a271";
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(hx + hw / 2 - 7, hy + 14, 14, 16);
+    ctx.fillStyle = "#b98d62";
+    ctx.fillRect(hx + hw - 22, kerb - 24, 13, 24);
   }
-  ctx.fillStyle = "#c8ad84";
+  ctx.fillStyle = "#b99e74";
   ctx.fillRect(0, kerb, BG_W, 5);
-  ctx.fillStyle = "#d8c19c";
+  ctx.fillStyle = "#cfb691";
   ctx.fillRect(0, feet, BG_W, BG_H - feet);
+  // a parked car across the street — the very thing it is growing toward
+  ctx.fillStyle = "#c97862";
+  ctx.beginPath();
+  ctx.moveTo(300, feet + 26);
+  ctx.quadraticCurveTo(302, feet + 8, 318, feet + 6);
+  ctx.quadraticCurveTo(326, feet - 6, 342, feet - 6);
+  ctx.quadraticCurveTo(358, feet - 6, 364, feet + 6);
+  ctx.quadraticCurveTo(378, feet + 8, 380, feet + 26);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#cfe4ea";
+  ctx.beginPath();
+  ctx.moveTo(330, feet + 5);
+  ctx.quadraticCurveTo(334, feet - 3, 342, feet - 3);
+  ctx.lineTo(342, feet + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#7a5c48";
+  ctx.beginPath();
+  ctx.arc(316, feet + 26, 7, 0, TAU);
+  ctx.arc(364, feet + 26, 7, 0, TAU);
+  ctx.fill();
   // crosswalk under the monster — a short zebra band, not full-height columns
   ctx.fillStyle = "#fff3d6";
   ctx.globalAlpha = 0.55;
@@ -374,7 +427,7 @@ function rooftops(ctx: Ctx, sx: number, feet: number): void {
     ctx.stroke();
   }
   // neighbouring roofs, lower and to the left — farther away
-  ctx.fillStyle = "#e9cfa6";
+  ctx.fillStyle = "#e3c391";
   ctx.beginPath();
   ctx.moveTo(-40, BG_H);
   ctx.lineTo(48, feet + 42);
@@ -387,26 +440,57 @@ function rooftops(ctx: Ctx, sx: number, feet: number): void {
   ctx.lineTo(266, BG_H);
   ctx.closePath();
   ctx.fill();
-  // THE roof, its ridge under the monster
-  ctx.fillStyle = "#d9b586";
+  // THE roof, its ridge under the monster; tile courses along the slope
+  ctx.fillStyle = "#cfa572";
   ctx.beginPath();
   ctx.moveTo(104, BG_H);
   ctx.lineTo(sx, feet + 6);
   ctx.lineTo(464, BG_H);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = "#c9a271";
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(104, BG_H);
+  ctx.lineTo(sx, feet + 6);
+  ctx.lineTo(464, BG_H);
+  ctx.closePath();
+  ctx.clip();
+  ctx.strokeStyle = "#b98d62";
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 2;
+  for (let i = 1; i <= 3; i++) {
+    const dy = i * 30;
+    ctx.beginPath();
+    ctx.moveTo(sx - 90 - i * 26, feet + 6 + dy + 26);
+    ctx.lineTo(sx, feet + 6 + dy);
+    ctx.lineTo(sx + 90 + i * 26, feet + 6 + dy + 26);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = "#b98d62";
   ctx.fillRect(sx - 34, feet, 68, 8);
+  // a dormer window poking through the right slope
+  ctx.fillStyle = "#f2e0b4";
+  ctx.fillRect(332, feet + 44, 30, 26);
+  ctx.fillStyle = "#b98d62";
+  ctx.beginPath();
+  ctx.moveTo(328, feet + 44);
+  ctx.lineTo(347, feet + 30);
+  ctx.lineTo(366, feet + 44);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#ffd98f";
+  ctx.fillRect(339, feet + 50, 16, 15);
   // chimney down the left slope, smoke curling
-  ctx.fillStyle = "#c9a271";
+  ctx.fillStyle = "#b98d62";
   ctx.fillRect(190, feet + 58, 22, 38);
   ctx.fillRect(186, feet + 52, 30, 9);
-  ctx.strokeStyle = "#e8d1b2";
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#f4e3c4";
+  ctx.lineWidth = 5;
   ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(201, feet + 44);
-  ctx.quadraticCurveTo(209, feet + 28, 200, feet + 14);
+  ctx.quadraticCurveTo(211, feet + 26, 200, feet + 10);
   ctx.stroke();
 }
 
@@ -416,7 +500,7 @@ function skyline(ctx: Ctx, sx: number, feet: number): void {
     [0, "#ffe9c8"],
     [1, "#ffcf9e"],
   ]);
-  ctx.fillStyle = "#ecd0a6";
+  ctx.fillStyle = "#e6c795";
   for (const [x, w, top] of [
     [20, 44, feet - 62],
     [86, 38, feet - 84],
@@ -434,26 +518,36 @@ function skyline(ctx: Ctx, sx: number, feet: number): void {
     [258, 46, feet + 30],
   ];
   for (const [x, w, top] of rank) {
-    ctx.fillStyle = "#d6ae80";
+    ctx.fillStyle = "#c99e6d";
     ctx.fillRect(x, top, w, BG_H - top);
-    ctx.fillStyle = "#fff3d6";
+    ctx.fillStyle = "#ffe9b6";
     for (let wy = top + 10; wy < BG_H - 8; wy += 16) {
       for (let wx = x + 8; wx < x + w - 8; wx += 13) {
         if (wr() < 0.42) {
-          ctx.globalAlpha = 0.75;
+          ctx.globalAlpha = 0.9;
           ctx.fillRect(wx, wy, 5, 7);
         }
       }
     }
     ctx.globalAlpha = 1;
   }
-  ctx.fillStyle = "#c9a271";
+  ctx.fillStyle = "#b98d62";
   ctx.fillRect(sx - 32, feet - 4, 64, 8);
-  // the joke: the tower across the way is taller
-  ctx.fillStyle = "#d6ae80";
+  // the joke: the tower across the way is taller — mast, light and all
+  ctx.fillStyle = "#c99e6d";
   ctx.fillRect(306, feet - 68, 40, BG_H);
-  ctx.fillStyle = "#c9a271";
+  ctx.fillStyle = "#b98d62";
   ctx.fillRect(302, feet - 72, 48, 7);
+  ctx.strokeStyle = "#b98d62";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(326, feet - 72);
+  ctx.lineTo(326, feet - 96);
+  ctx.stroke();
+  ctx.fillStyle = "#e8756d";
+  ctx.beginPath();
+  ctx.arc(326, feet - 99, 3.4, 0, TAU);
+  ctx.fill();
   cloud(ctx, 260, feet - 108, 1.2, "#fff3da", 0.9);
   cloud(ctx, 60, feet - 130, 0.9, "#fff3da", 0.75);
 }
@@ -473,7 +567,7 @@ function aboveTown(ctx: Ctx, sx: number, feet: number): void {
       [250, feet + 16],
       [400, feet + 2],
     ],
-    "#d8c793"
+    "#cdbb82"
   );
   ground(
     ctx,
@@ -484,8 +578,16 @@ function aboveTown(ctx: Ctx, sx: number, feet: number): void {
       [330, feet + 30],
       [400, feet + 38],
     ],
-    "#c6b17e"
+    "#b3a06c"
   );
+  // a footpath winding up to the crest it stands on
+  ctx.strokeStyle = "#dcc99a";
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(sx - 6, feet - 2);
+  ctx.bezierCurveTo(sx - 40, feet + 18, sx + 20, feet + 34, sx - 30, feet + 58);
+  ctx.stroke();
   const tr = rng(11);
   for (const [tx, ty] of [
     [70, feet + 30],
@@ -495,61 +597,199 @@ function aboveTown(ctx: Ctx, sx: number, feet: number): void {
     [352, feet + 34],
   ] as [number, number][]) {
     const tw = 15 + tr() * 6;
-    ctx.fillStyle = "#efd9ae";
+    ctx.fillStyle = "#f4e0b4";
     ctx.fillRect(tx, ty, tw, 15);
-    ctx.fillStyle = "#c98f6e";
+    ctx.fillStyle = "#c9705a";
     ctx.beginPath();
     ctx.moveTo(tx - 2, ty);
     ctx.lineTo(tx + tw / 2, ty - 8);
     ctx.lineTo(tx + tw + 2, ty);
     ctx.closePath();
     ctx.fill();
+    // one lit window each — the town is home to someone
+    ctx.fillStyle = "#ffd98f";
+    ctx.fillRect(tx + tw / 2 - 2.5, ty + 4, 5, 6);
+  }
+  // trees between the houses
+  ctx.fillStyle = "#8fae6e";
+  for (const [tx2, ty2, tw2] of [
+    [96, feet + 34, 8],
+    [186, feet + 30, 9],
+    [296, feet + 32, 8],
+  ] as [number, number, number][]) {
+    ctx.beginPath();
+    ctx.ellipse(tx2, ty2, tw2, tw2 * 1.1, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = "#a2794f";
+    ctx.fillRect(tx2 - 1.5, ty2 + tw2, 3, 6);
+    ctx.fillStyle = "#8fae6e";
   }
   cloud(ctx, 92, feet - 12, 1.3, "#fff3da", 0.92);
   cloud(ctx, 340, feet + 4, 0.85, "#fff3da", 0.8);
 }
 
-/** m6, to City: giant over the patchwork, in a clearing to the left. */
+/**
+ * m6, to City: a giant in the countryside. The first version was abstract —
+ * random rectangles and a squiggle that the user rightly said "doesn't look
+ * like anything". This one is a real landscape: the CITY it is growing
+ * toward small on the horizon, hedged fields, farmhouses with red roofs,
+ * tree clusters, and a proper river with banks and a little bridge.
+ */
 function patchwork(ctx: Ctx, sx: number, feet: number): void {
   sky(ctx, [
     [0, "#f7dcb4"],
-    [1, "#eec3a0"],
+    [1, "#eabf96"],
   ]);
   const horizon = feet - 34;
-  ctx.fillStyle = "#cdbd8e";
-  ctx.fillRect(0, horizon, BG_W, BG_H - horizon);
-  const pr = rng(23);
-  const tones = ["#d6c493", "#c3ad7c", "#cbcf9a", "#d9cda1"];
-  let y = horizon;
-  let rh = 16;
-  while (y < BG_H) {
-    let x = -8;
-    while (x < BG_W) {
-      const w = rh * (1.6 + pr() * 1.6);
-      ctx.fillStyle = tones[(pr() * tones.length) | 0];
-      ctx.globalAlpha = 0.9;
-      ctx.fillRect(x, y, w - 1.5, rh - 1.5);
-      x += w;
-    }
-    y += rh;
-    rh *= 1.28; // nearer rows are deeper — a cheap, honest perspective
+  // the destination: a tiny city skyline on the horizon
+  ctx.fillStyle = "#b98d62";
+  for (const [x, w, h] of [
+    [40, 11, 24],
+    [55, 14, 38],
+    [73, 10, 28],
+    [87, 13, 46],
+    [104, 11, 22],
+    [119, 9, 16],
+  ] as [number, number, number][]) {
+    ctx.fillRect(x, horizon - h, w, h);
   }
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = "#aac6cc";
-  ctx.lineWidth = 9;
+  // The land: a quilt of trapezoid fields whose side seams SLANT (columns
+  // spread outward toward the viewer), stitched over with wavy hedgerow
+  // strokes. Axis-aligned rows of rectangles — both earlier attempts — read
+  // as courses of brickwork no matter the colours; the slant and the waver
+  // are what make it read as country seen from above.
+  const xsRows = [
+    [-8, 70, 170, 250, 330, 408],
+    [-8, 65, 165, 255, 335, 408],
+    [-8, 58, 158, 262, 342, 408],
+    [-8, 50, 150, 270, 350, 408],
+  ];
+  const ysRows = [horizon, horizon + 26, horizon + 64, BG_H + 6];
+  const tones = ["#d9c894", "#b3c583", "#e0d3a4", "#a8bd7a", "#cbb578"];
+  for (let b = 0; b < 3; b++) {
+    for (let c = 0; c < 5; c++) {
+      ctx.fillStyle = tones[(b * 2 + c) % tones.length];
+      ctx.beginPath();
+      ctx.moveTo(xsRows[b][c], ysRows[b]);
+      ctx.lineTo(xsRows[b][c + 1], ysRows[b]);
+      ctx.lineTo(xsRows[b + 1][c + 1], ysRows[b + 1]);
+      ctx.lineTo(xsRows[b + 1][c], ysRows[b + 1]);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.strokeStyle = "#7f9c62";
+  ctx.lineCap = "round";
+  for (let b = 1; b < 3; b++) {
+    ctx.lineWidth = 3 + b;
+    ctx.beginPath();
+    ctx.moveTo(-8, ysRows[b]);
+    ctx.bezierCurveTo(
+      100,
+      ysRows[b] - 5 - b * 2,
+      260,
+      ysRows[b] + 5 + b * 2,
+      408,
+      ysRows[b] - 3
+    );
+    ctx.stroke();
+  }
+  for (let c = 1; c < 5; c++) {
+    ctx.lineWidth = 3.6;
+    ctx.beginPath();
+    ctx.moveTo(xsRows[0][c], horizon + 2);
+    ctx.bezierCurveTo(
+      xsRows[1][c] + 5,
+      ysRows[1],
+      xsRows[2][c] - 5,
+      ysRows[2],
+      xsRows[3][c],
+      BG_H
+    );
+    ctx.stroke();
+  }
+  // trees dotted along the hedgerows, where real hedgerow trees grow
+  ctx.fillStyle = "#6f8c54";
+  for (const [hx, hy, hr] of [
+    [162, horizon + 27, 4.5],
+    [258, horizon + 24, 3.8],
+    [64, horizon + 62, 5],
+    [340, horizon + 66, 5],
+    [152, horizon + 110, 6],
+  ] as [number, number, number][]) {
+    ctx.beginPath();
+    ctx.arc(hx, hy, hr, 0, TAU);
+    ctx.fill();
+  }
+  // a lane winding from the horizon toward the clearing
+  ctx.strokeStyle = "#e8d9ae";
+  ctx.lineWidth = 6;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(316, horizon);
-  ctx.bezierCurveTo(286, horizon + 44, 346, horizon + 80, 306, BG_H + 6);
+  ctx.moveTo(96, horizon + 4);
+  ctx.bezierCurveTo(150, horizon + 30, 60, feet + 10, sx - 40, feet + 24);
   ctx.stroke();
-  // the meadow it stands in
+  // the river: banks first, water on top, and a bridge where the lane meets it
+  ctx.lineCap = "round";
+  const riverPath = () => {
+    ctx.beginPath();
+    ctx.moveTo(330, horizon);
+    ctx.bezierCurveTo(292, horizon + 50, 352, horizon + 96, 302, BG_H + 8);
+  };
+  ctx.strokeStyle = "#9a8a5e";
+  ctx.lineWidth = 19;
+  riverPath();
+  ctx.stroke();
+  ctx.strokeStyle = "#8fb6c2";
+  ctx.lineWidth = 14;
+  riverPath();
+  ctx.stroke();
+  ctx.strokeStyle = "#b8d4da";
+  ctx.lineWidth = 4;
+  riverPath();
+  ctx.stroke();
+  // the bridge
+  ctx.fillStyle = "#b98d62";
+  ctx.fillRect(296, horizon + 58, 40, 9);
+  ctx.fillRect(294, horizon + 55, 5, 15);
+  ctx.fillRect(333, horizon + 55, 5, 15);
+  // farmhouses with red roofs, and tree clusters
+  for (const [hx, hy, hw] of [
+    [176, horizon + 34, 20],
+    [64, feet + 4, 24],
+    [252, feet + 30, 26],
+  ] as [number, number, number][]) {
+    ctx.fillStyle = "#f2e0b4";
+    ctx.fillRect(hx, hy, hw, hw * 0.62);
+    ctx.fillStyle = "#c9705a";
+    ctx.beginPath();
+    ctx.moveTo(hx - 3, hy);
+    ctx.lineTo(hx + hw / 2, hy - hw * 0.4);
+    ctx.lineTo(hx + hw + 3, hy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = "#8fae6e";
+  for (const [tx, ty, tw] of [
+    [148, horizon + 18, 9],
+    [162, horizon + 24, 7],
+    [222, feet + 2, 11],
+    [240, feet + 10, 8],
+    [90, feet + 44, 12],
+    [110, feet + 52, 9],
+  ] as [number, number, number][]) {
+    ctx.beginPath();
+    ctx.ellipse(tx, ty, tw, tw * 0.8, 0, 0, TAU);
+    ctx.fill();
+  }
+  // the meadow the giant stands in
   ctx.fillStyle = "#dfd2a6";
   ctx.beginPath();
   ctx.ellipse(sx, feet + 10, 62, 17, 0, 0, TAU);
   ctx.fill();
-  cloud(ctx, 70, horizon, 1.5, "#fff1d8", 0.95);
-  cloud(ctx, 230, horizon - 12, 1.1, "#fff1d8", 0.8);
-  cloud(ctx, 356, horizon + 6, 1.3, "#fff1d8", 0.9);
+  cloud(ctx, 70, horizon - 6, 1.5, "#fff1d8", 0.95);
+  cloud(ctx, 230, horizon - 16, 1.1, "#fff1d8", 0.8);
+  cloud(ctx, 356, horizon + 2, 1.3, "#fff1d8", 0.9);
 }
 
 /** m7, to Country: standing on the curve of the world, haze below. */
@@ -568,7 +808,7 @@ function stratosphere(ctx: Ctx, sx: number, feet: number): void {
   ctx.quadraticCurveTo(sx, feet - 48, 404, feet + 48);
   ctx.lineTo(BG_W + 4, BG_H + 4);
   ctx.closePath();
-  ctx.fillStyle = "#cdbd97";
+  ctx.fillStyle = "#c2b083";
   ctx.fill();
   ctx.fillStyle = "#bfae87";
   ctx.globalAlpha = 0.55;
@@ -620,12 +860,12 @@ function lowOrbit(ctx: Ctx, sx: number, feet: number): void {
     ctx.closePath();
   };
   limb();
-  ctx.fillStyle = "#a9c4bf";
+  ctx.fillStyle = "#8fb3ac";
   ctx.fill();
   ctx.save();
   limb();
   ctx.clip();
-  ctx.fillStyle = "#cbbf92";
+  ctx.fillStyle = "#c2b378";
   ctx.beginPath();
   ctx.moveTo(-10, BG_H + 10);
   ctx.lineTo(-10, edgeY + 26);
@@ -655,8 +895,8 @@ function lowOrbit(ctx: Ctx, sx: number, feet: number): void {
   ctx.save();
   ctx.strokeStyle = "#ffe8c2";
   for (const [lw, a, lift] of [
-    [16, 0.18, -5],
-    [5, 0.65, 0],
+    [16, 0.26, -5],
+    [5, 0.85, 0],
   ] as [number, number, number][]) {
     ctx.lineWidth = lw;
     ctx.globalAlpha = a;
@@ -711,11 +951,11 @@ function space(ctx: Ctx, sx: number, feet: number): void {
   ctx.arc(168, 238, 6, 0, TAU);
   ctx.fill();
   // its asteroid — Little Prince style, craters and all
-  ctx.fillStyle = "#b9a8c4";
+  ctx.fillStyle = "#a08cb4";
   ctx.beginPath();
   ctx.ellipse(sx, feet + 12, 46, 14, 0, 0, TAU);
   ctx.fill();
-  ctx.fillStyle = "#a394b4";
+  ctx.fillStyle = "#87749e";
   for (const [cx2, cy2, cr] of [
     [sx - 22, feet + 12, 4.5],
     [sx + 12, feet + 17, 3.5],
@@ -819,9 +1059,9 @@ function galaxies(ctx: Ctx, sx: number, feet: number): void {
     ctx.fill();
     ctx.restore();
   };
-  galaxy(84, 150, 0.8, -0.5);
-  galaxy(330, 250, 0.55, 0.6);
-  galaxy(60, 400, 0.4, 0.2);
+  galaxy(84, 150, 0.8, -0.5, 1.25);
+  galaxy(330, 250, 0.55, 0.6, 1.25);
+  galaxy(60, 400, 0.4, 0.2, 1.25);
   // ITS galaxy: boosted well past the neighbours so the seat reads
   galaxy(sx, feet - 4, 2.3, -0.12, 1.6);
 }
@@ -836,11 +1076,11 @@ function bubbles(ctx: Ctx, sx: number, feet: number): void {
   const bubble = (bx: number, by: number, r: number, tint: string) => {
     ctx.save();
     ctx.fillStyle = tint;
-    ctx.globalAlpha = 0.16;
+    ctx.globalAlpha = 0.24;
     ctx.beginPath();
     ctx.arc(bx, by, r, 0, TAU);
     ctx.fill();
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.7;
     ctx.strokeStyle = "#ede2f4";
     ctx.lineWidth = 2.4;
     ctx.stroke();
@@ -880,8 +1120,8 @@ function dimension(ctx: Ctx, sx: number, feet: number): void {
   stars(ctx, 101, 60, 0, BG_H);
   ctx.save();
   for (const [tone, a, off, w] of [
-    ["#b8d0d8", 0.14, 0, 44],
-    ["#e0c9b8", 0.11, 84, 34],
+    ["#9fc4d0", 0.2, 0, 44],
+    ["#e0bd9e", 0.16, 84, 34],
   ] as [string, number, number, number][]) {
     ctx.fillStyle = tone;
     ctx.globalAlpha = a;
@@ -898,8 +1138,8 @@ function dimension(ctx: Ctx, sx: number, feet: number): void {
   ctx.save();
   ctx.strokeStyle = "#e2d4f2";
   for (let i = 0; i < 5; i++) {
-    ctx.globalAlpha = 0.32 - i * 0.05;
-    ctx.lineWidth = 2.4;
+    ctx.globalAlpha = 0.45 - i * 0.07;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.ellipse(sx, cy, 112 + i * 40, 92 + i * 33, 0, 0, TAU);
     ctx.stroke();
