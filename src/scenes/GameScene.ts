@@ -126,6 +126,19 @@ export class GameScene extends Phaser.Scene {
 
   private over = false;
   private inputReady = false;
+  /**
+   * The claw needs this long to reload between drops. This is both a bug fix
+   * and a design decision. The bug: unthrottled tapping could stack a dozen
+   * falling bodies in a second, and with the solver at 24 position iterations
+   * the frame time collapses on a phone — the reported "screen freezes when
+   * dropping in quick succession". The design: measured with the input
+   * harness, 80 mindless taps scored 3,208 and built a tier-7 purely by
+   * letting auto-merges cascade — spam WAS a strategy. A reload doesn't make
+   * spam unprofitable by itself (the craving retune's overflow pressure does
+   * that), but it makes every drop a decision instead of a stream.
+   */
+  private static DROP_RELOAD_MS = 450;
+  private nextDropAt = 0;
   private binGfx!: Phaser.GameObjects.Graphics;
   /** Redrawn every frame: the bin edge glowing as the pile nears the line. */
   private dangerGfx!: Phaser.GameObjects.Graphics;
@@ -303,6 +316,10 @@ export class GameScene extends Phaser.Scene {
    * never a fresh drop.
    */
   private dropQueued(): void {
+    // Reloading — the tap aims but releases nothing. See DROP_RELOAD_MS.
+    if (this.time.now < this.nextDropAt) return;
+    this.nextDropAt = this.time.now + GameScene.DROP_RELOAD_MS;
+
     const fromPocket = this.pocketLoad !== null;
     // Under Double Drop this is two DIFFERENT foods, drawn separately, so they
     // can't fuse with each other on the way down. A pocketed food is never
@@ -330,6 +347,9 @@ export class GameScene extends Phaser.Scene {
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
     this.lastDrop = { foods, specs, fromPocket };
     this.claw.setDispenser(this.currentDrop());
+    // The next food fades in over the reload, so the pause reads as the claw
+    // fetching it rather than the game ignoring a tap.
+    this.claw.showReload(GameScene.DROP_RELOAD_MS);
     this.refreshUndo();
   }
 
@@ -620,14 +640,17 @@ export class GameScene extends Phaser.Scene {
   /**
    * The danger line creeps DOWN as the monster grows — a gentle squeeze on top
    * of the real late-game pressure, which is the craving ramp demanding
-   * enormous staged builds (a tier-10 is 512 tier-1s of material). The cap
-   * matters: it leaves just enough depth that a tier-10 physically fits below
-   * the line, so a big ask is always brutal but never impossible.
+   * enormous staged builds (a tier-8 is 128 tier-1s of material). The cap
+   * matters: it leaves just enough depth that a tier-8 physically fits below
+   * the line, so a big ask is always brutal but never impossible — which is
+   * also why tightening difficulty speeds the DESCENT (8px per milestone,
+   * was 6) but never lowers the floor: the fully-descended bin geometry is
+   * the verified one where the whole ladder is still buildable.
    */
   private lineY(): number {
     // "Cramped Bin" starts the line lower, so there's less room from the off.
     const base = this.state.has("cramped") ? BIN.overflowLine + 70 : BIN.overflowLine;
-    return Math.min(base + this.state.milestone * 6, BIN.floor - 262);
+    return Math.min(base + this.state.milestone * 8, BIN.floor - 262);
   }
 
   update(time: number, delta: number): void {

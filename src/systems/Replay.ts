@@ -32,9 +32,14 @@ import { MAX_TIER } from "../data/foods";
 // deployed v3 server would otherwise score the same log differently and reject
 // every honest run.
 //
+// v5: the difficulty retune toward "an average run dies near Solar System" —
+// the craving ceiling ramps at 0.8/milestone (tier-8 asks from Town), the
+// bias sharpens twice as fast with a lower floor. Craving rolls are part of
+// what a seed produces, hence the bump.
+//
 // Bump this whenever ANY scoring or economy rule changes, and redeploy the edge
 // function in the same breath — the two must always agree.
-export const REPLAY_VERSION = "v4";
+export const REPLAY_VERSION = "v5";
 
 /** A plain object rather than a `const enum`: those get inlined at compile
  *  time and don't survive the copy into the Deno edge function. */

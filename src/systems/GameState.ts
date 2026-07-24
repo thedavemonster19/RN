@@ -65,10 +65,16 @@ const DROP_QUEUE_LEN = 4;
  * It TIGHTENS with the monster, so appetite grows with size rather than just
  * the band widening: a newborn's asks are spread across its small band, while a
  * Universe-sized monster asks for the biggest thing it can most of the time.
+ *
+ * Retuned 2026-07-24 (with the faster band ramp in rollCraving) because runs
+ * ran long past the target of "an average run dies around Solar System":
+ * the shrink per milestone doubled and the floor dropped, so the sharp end
+ * arrives while runs are still alive. At the old values the floor didn't even
+ * engage until milestone 17 — pure dead weight.
  */
 const CRAVING_BIAS_BASE = 0.62;
-const CRAVING_BIAS_PER_MILESTONE = 0.02;
-const CRAVING_BIAS_MIN = 0.34;
+const CRAVING_BIAS_PER_MILESTONE = 0.04;
+const CRAVING_BIAS_MIN = 0.25;
 
 /**
  * Pure game logic: what the monster wants, the queue of food you get to drop,
@@ -186,18 +192,20 @@ export class GameState {
    * possible ask, while the CEILING climbs and the roll is weighted toward the
    * top of the band.
    *
-   * At the last milestone the distribution works out to roughly:
-   *   tier 3 ~4%, 4 ~9%, 5 ~15%, 6 ~18%, 7 ~26%, 8 ~28%
-   * — mostly big builds, with about a quarter of asks small enough to be
-   * grabbed off the queue or assembled quickly. That variety is the point:
-   * a run of pure tier-8s leaves no way to spend small food.
+   * From the Dimension milestone on, the distribution works out to roughly:
+   *   tier 3 <1%, 4 ~1%, 5 ~5%, 6 ~13%, 7 ~28%, 8 ~52%
+   * — four of five asks are the two biggest builds, with just enough small
+   * ones that little food still has somewhere to go. (Tier-8 asks now start
+   * at Town, milestone 5, instead of Country: the 0.6 ramp kept the biggest
+   * builds out of the game until runs were nearly over, which is a big part
+   * of why the game read as easy.)
    */
   private rollCraving(): Spec {
     const m = this.milestone;
     // "Big Appetite" lifts both ends of the band a tier.
     const bump = this.has("feast") ? 1 : 0;
     const low = Math.min(MIN_CRAVING_TIER + bump, MAX_TIER - 1);
-    const cap = Math.min(4 + bump + Math.floor(m * 0.6), MAX_TIER);
+    const cap = Math.min(4 + bump + Math.floor(m * 0.8), MAX_TIER);
     const span = Math.max(1, cap - low + 1);
     // pow(u, <1) skews the pick toward the high end of the band, and the
     // exponent shrinks as the monster grows, so the skew sharpens with size.

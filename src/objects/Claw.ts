@@ -63,6 +63,22 @@ export class Claw {
     this.draw();
   }
 
+  /**
+   * Fade the next food in over the reload window, so the enforced pause
+   * between drops reads as the claw fetching the next piece.
+   */
+  showReload(ms: number): void {
+    if (!this.dispenser) return;
+    this.scene.tweens.killTweensOf(this.dispenser);
+    this.dispenser.setAlpha(0.25);
+    this.scene.tweens.add({
+      targets: this.dispenser,
+      alpha: 1,
+      duration: ms,
+      ease: "Quad.easeIn",
+    });
+  }
+
   private draw(): void {
     const g = this.gfx;
     g.clear();
