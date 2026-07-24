@@ -572,7 +572,10 @@ export class GameScene extends Phaser.Scene {
 
     const line = this.lineY();
     const pulse = 0.55 + 0.45 * Math.sin(time / 90);
-    const h = BIN.floor - line + 20;
+    // +8, not +20: the rect starts at line-8, so +20 put the drawn bottom at
+    // BIN.floor + 12 while food actually rests ON BIN.floor — a 12px gap that
+    // read as the food hovering above the bin.
+    const h = BIN.floor - line + 8;
     g.lineStyle(3, COLORS.danger, pulse * 0.9);
     g.strokeRoundedRect(BIN.left, line - 8, BIN.right - BIN.left, h, 18);
     g.lineStyle(10, COLORS.danger, pulse * 0.25);

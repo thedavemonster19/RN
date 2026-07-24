@@ -30,10 +30,14 @@ import { MAX_TIER } from "./foods.ts";
  * timestep, so it would be a much bigger and more fragile undertaking.
  */
 
-// v2: added per-drop scoring and daily modifiers. Bumping ensures a stale
-// cached client (still on v1 scoring) is rejected with a clear message rather
-// than mismatching, and keeps v1 and v2 scores from mixing on a leaderboard.
-export const REPLAY_VERSION = "v2";
+// v3: the craving band was rebalanced (it now widens instead of sliding up)
+// and the food ladder shrank, so the same seed produces a different run than it
+// did under v2. Bumping means a stale cached client is rejected with a clear
+// version message instead of a baffling "score mismatch".
+//
+// Bump this whenever ANY scoring or economy rule changes, and redeploy the edge
+// function in the same breath — the two must always agree.
+export const REPLAY_VERSION = "v3";
 
 /** A plain object rather than a `const enum`: those get inlined at compile
  *  time and don't survive the copy into the Deno edge function. */

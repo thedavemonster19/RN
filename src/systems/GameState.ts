@@ -59,6 +59,14 @@ const UNDOS_PER_RUN = 3;
 const DROP_QUEUE_LEN = 4;
 
 /**
+ * Exponent skewing the craving roll toward the top of its band (see
+ * rollCraving). Below 1 biases high; 1 would be uniform. 0.55 keeps roughly
+ * three quarters of late-game asks at tier 6+ while leaving a real chance of a
+ * small one.
+ */
+const CRAVING_BIAS = 0.55;
+
+/**
  * Pure game logic: what the monster wants, the queue of food you get to drop,
  * score/growth/milestones. Knows nothing about rendering or physics.
  *
@@ -164,20 +172,33 @@ export class GameState {
     return this.mods.includes(mod);
   }
 
+  /**
+   * The craving band WIDENS as the monster grows instead of sliding up.
+   *
+   * It used to be a narrow window that marched upward — by the Town milestone
+   * both ends had hit the top, so every single ask was a tier 7 or 8 and the
+   * game turned into "build the biggest thing, forever". The floor now stays at
+   * MIN_CRAVING_TIER for the whole run, so a cookie or a donut is always a
+   * possible ask, while the CEILING climbs and the roll is weighted toward the
+   * top of the band.
+   *
+   * At the last milestone the distribution works out to roughly:
+   *   tier 3 ~4%, 4 ~9%, 5 ~15%, 6 ~18%, 7 ~26%, 8 ~28%
+   * — mostly big builds, with about a quarter of asks small enough to be
+   * grabbed off the queue or assembled quickly. That variety is the point:
+   * a run of pure tier-8s leaves no way to spend small food.
+   */
   private rollCraving(): Spec {
     const m = this.milestone;
-    // "Big Appetite" shifts the whole craving band up a tier — larger builds
-    // demanded from the start.
+    // "Big Appetite" lifts both ends of the band a tier.
     const bump = this.has("feast") ? 1 : 0;
-    const min = Math.min(MIN_CRAVING_TIER + bump + Math.floor(m / 2), MAX_TIER - 1);
-    const max = Math.min(
-      MIN_CRAVING_TIER + 1 + bump + Math.floor((2 * m) / 3),
-      MAX_TIER
-    );
-    return {
-      type: this.rng.pick(TYPES),
-      tier: this.rng.between(min, Math.max(min, max)),
-    };
+    const low = Math.min(MIN_CRAVING_TIER + bump, MAX_TIER - 1);
+    const cap = Math.min(4 + bump + Math.floor(m * 0.6), MAX_TIER);
+    const span = Math.max(1, cap - low + 1);
+    // pow(u, <1) skews the pick toward the high end of the band.
+    const roll = Math.pow(this.rng.next(), CRAVING_BIAS);
+    const tier = low + Math.min(span - 1, Math.floor(span * roll));
+    return { type: this.rng.pick(TYPES), tier };
   }
 
   /**

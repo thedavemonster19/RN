@@ -56,13 +56,26 @@ export const TYPES: FoodType[] = [
  * ~50% by tier 5 — merging alone drained the bin faster than dropping filled
  * it. Conserving area means the only way volume leaves is the monster's mouth.
  *
+ * THE WHOLE LADDER IS SCALED TOGETHER, never individual tiers — a non-√2 step
+ * anywhere breaks the area conservation above.
+ *
+ * Scaled down from [11..128] to [9..102] (≈0.8) to fix a real dead end: at the
+ * old sizes two tier-7s could NOT coexist in the 280px bin at any danger-line
+ * height, so they could never touch, so tier 8 could never be built. Measured
+ * over 14 seeded fills, the old ladder topped out at tier 6.7 on average — the
+ * cake was unreachable content, which is why a run could feel instantly lost
+ * when a huge craving came up. At [9..102] the full ladder is reachable even
+ * with the line fully descended, at the cost of ~61% more bin slack (32 → 52
+ * drops before overflow). Shrinking further (r1=8) more than doubled capacity,
+ * which risks the unloseable-bin failure mode, so 9 is the conservative fix.
+ *
  * Eight tiers. Ten forced tier 1 down to 12px across and the runs into
  * marathons (√2 over ten steps needs a huge capacity to hold the chain);
  * eight keeps tier 1 chunky at 22px while the ice tier-8 stays a near
  * bin-wide monument (128 tier-1s of material). Bigger food in the same bin =
  * far less capacity = shorter, tenser runs.
  */
-export const TIER_RADII = [11, 16, 23, 32, 45, 64, 90, 128];
+export const TIER_RADII = [9, 13, 18, 25, 36, 51, 72, 102];
 
 export const MAX_TIER = TIER_RADII.length;
 

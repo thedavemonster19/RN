@@ -26,6 +26,144 @@ const MONSTER_STYLE: "mochi" | "classic" = "mochi";
 /** Eye/mouth ink — warm brown to sit in the cream-and-brown theme, not navy. */
 const INK = 0x4a3327;
 
+/** Muted tones for the scale references, so they never upstage the monster. */
+const REF_DARK = 0x8a6b52;
+const REF_LIGHT = 0xc4a184;
+
+type ScaleRef = {
+  /** Used while `milestone < upTo`. */
+  upTo: number;
+  name: string;
+  draw: (g: Phaser.GameObjects.Graphics, x: number, gy: number) => void;
+};
+
+/**
+ * The comparison ladder, smallest first. Each is drawn at roughly the same
+ * height so swapping one for the next doesn't jolt the layout — the JUMP is in
+ * what the thing represents, not in how big it's painted.
+ */
+const SCALE_REFS: ScaleRef[] = [
+  {
+    upTo: 2,
+    name: "baker",
+    draw: (g, x, gy) => {
+      g.fillStyle(REF_DARK, 1);
+      g.fillRect(x - 6, gy - 12, 4, 12);
+      g.fillRect(x + 2, gy - 12, 4, 12);
+      g.fillStyle(COLORS.plate, 1);
+      g.fillRoundedRect(x - 11, gy - 34, 22, 24, 6);
+      g.lineStyle(1.5, COLORS.ink, 0.4);
+      g.strokeRoundedRect(x - 11, gy - 34, 22, 24, 6);
+      g.fillStyle(0xe8b98a, 1);
+      g.fillCircle(x, gy - 40, 8);
+      g.fillStyle(0xfffaf0, 1);
+      g.fillEllipse(x, gy - 52, 20, 12);
+      g.fillEllipse(x - 6, gy - 56, 10, 10);
+      g.fillEllipse(x + 6, gy - 56, 10, 10);
+      g.fillEllipse(x, gy - 58, 11, 11);
+      g.fillRect(x - 11, gy - 50, 22, 6);
+    },
+  },
+  {
+    upTo: 4,
+    name: "house",
+    draw: (g, x, gy) => {
+      g.fillStyle(COLORS.plate, 1);
+      g.fillRect(x - 16, gy - 26, 32, 26);
+      g.lineStyle(1.5, COLORS.ink, 0.35);
+      g.strokeRect(x - 16, gy - 26, 32, 26);
+      // roof
+      g.fillStyle(REF_DARK, 1);
+      g.fillTriangle(x - 21, gy - 26, x + 21, gy - 26, x, gy - 46);
+      // door + window
+      g.fillStyle(REF_DARK, 1);
+      g.fillRect(x - 4, gy - 14, 8, 14);
+      g.fillStyle(REF_LIGHT, 1);
+      g.fillRect(x + 6, gy - 22, 7, 7);
+    },
+  },
+  {
+    upTo: 6,
+    name: "tower",
+    draw: (g, x, gy) => {
+      g.fillStyle(COLORS.plate, 1);
+      g.fillRect(x - 11, gy - 54, 22, 54);
+      g.lineStyle(1.5, COLORS.ink, 0.35);
+      g.strokeRect(x - 11, gy - 54, 22, 54);
+      // window grid
+      g.fillStyle(REF_LIGHT, 1);
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 2; c++) {
+          g.fillRect(x - 7 + c * 9, gy - 49 + r * 10, 5, 6);
+        }
+      }
+      // spire
+      g.fillStyle(REF_DARK, 1);
+      g.fillRect(x - 1.5, gy - 64, 3, 10);
+    },
+  },
+  {
+    upTo: 8,
+    name: "town",
+    draw: (g, x, gy) => {
+      const bar = (bxx: number, w: number, h: number) => {
+        g.fillStyle(COLORS.plate, 1);
+        g.fillRect(bxx, gy - h, w, h);
+        g.lineStyle(1.2, COLORS.ink, 0.3);
+        g.strokeRect(bxx, gy - h, w, h);
+        g.fillStyle(REF_LIGHT, 1);
+        for (let r = 0; r < Math.floor(h / 11); r++) {
+          g.fillRect(bxx + 3, gy - h + 4 + r * 11, w - 6, 4);
+        }
+      };
+      bar(x - 22, 12, 30);
+      bar(x - 8, 14, 46);
+      bar(x + 8, 13, 24);
+    },
+  },
+  {
+    upTo: 10,
+    name: "planet",
+    draw: (g, x, gy) => {
+      const cy = gy - 26;
+      g.fillStyle(REF_LIGHT, 1);
+      g.fillCircle(x, cy, 20);
+      // a couple of continents
+      g.fillStyle(REF_DARK, 1);
+      g.fillEllipse(x - 6, cy - 5, 14, 8);
+      g.fillEllipse(x + 7, cy + 6, 11, 7);
+      // ring
+      g.lineStyle(2.5, REF_DARK, 0.75);
+      g.strokeEllipse(x, cy + 3, 54, 16);
+    },
+  },
+  {
+    upTo: Infinity,
+    name: "galaxy",
+    draw: (g, x, gy) => {
+      const cy = gy - 28;
+      g.fillStyle(REF_LIGHT, 0.5);
+      g.fillEllipse(x, cy, 52, 22);
+      // two spiral arms as tapering dot trails
+      g.fillStyle(REF_DARK, 1);
+      for (const dir of [1, -1]) {
+        for (let i = 0; i < 9; i++) {
+          const t = i / 8;
+          const a = dir * (t * Math.PI * 1.25);
+          const rad = 4 + t * 23;
+          g.fillCircle(
+            x + Math.cos(a) * rad * dir,
+            cy + Math.sin(a) * rad * 0.42,
+            2.6 - t * 1.6
+          );
+        }
+      }
+      g.fillStyle(0xfffaf0, 1);
+      g.fillCircle(x, cy, 4);
+    },
+  },
+];
+
 /**
  * One aura colour per size milestone, cycling once it runs off the end. Warm
  * bakery tones now — honey, berry, caramel — so a level-up reads as a visible
@@ -37,13 +175,12 @@ const AURA_COLORS = [
 ];
 
 /**
- * The monster: a soft, round-but-not-spherical blob — a wide sitting body with
- * a slightly narrower head bulge, little foot nubs and a leaf tuft. Drawn
- * rather than emoji'd so its expressions are part of the artwork instead of a
- * character floating above its head.
+ * The monster: a soft bakery blob drawn rather than emoji'd, so its
+ * expressions are part of the artwork instead of a character floating above
+ * its head. See MONSTER_STYLE for the two designs.
  *
- * Cues borrowed on purpose: Ditto's amorphous squish, Rowlet's big dark eyes
- * with a bright highlight, Snom's tuft and blush, Wooper's wide simple mouth.
+ * The look leans on the usual shorthand for "cute": a squat rounded body,
+ * oversized simple eyes with a single highlight, and blush.
  */
 export class Monster {
   private scene: Phaser.Scene;
@@ -56,6 +193,7 @@ export class Monster {
   private sizeLabel: Phaser.GameObjects.Text;
   /** A fixed-size figure the monster is compared against — see drawScaleRef. */
   private scaleRef?: Phaser.GameObjects.Graphics;
+  private scaleRefLabel?: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
   private monsterName = "";
   private sizeText = "";
@@ -104,12 +242,10 @@ export class Monster {
     this.setScaleRefVisible(false);
   }
 
-  /** Show or hide the "for scale" baker beside the monster. */
+  /** Show or hide the scale reference beside the monster. */
   setScaleRefVisible(visible: boolean): void {
     this.scaleRef?.setVisible(visible);
-    (this.scene.children.getByName("scaleRefLabel") as
-      | Phaser.GameObjects.Text
-      | null)?.setVisible(visible);
+    this.scaleRefLabel?.setVisible(visible);
   }
 
   /**
@@ -135,46 +271,22 @@ export class Monster {
   }
 
   /**
-   * A tiny baker who never changes size, standing on the same ground as the
-   * monster — the constant the monster is measured against. It starts a little
-   * taller than a newborn and, as the monster grows milestone by milestone,
-   * gets visibly towered over. Drawn OUTSIDE the scaling container so it stays
-   * put while the monster balloons past it.
+   * The thing the monster is measured against, standing on its ground line.
+   *
+   * A single fixed baker only works while the monster is person-sized — once
+   * it's a Town there is no sense in comparing it to a man. So the REFERENCE
+   * swaps up a ladder as the monster levels (baker → house → tower → town →
+   * planet → galaxy) while each one is drawn at the same modest footprint. The
+   * monster visibly outgrows each reference, then the reference is replaced by
+   * something far bigger and the chase starts again — which is what keeps the
+   * sense of scale going long after the sprite has hit its size cap.
+   *
+   * Drawn OUTSIDE the scaling container so it never scales with the monster.
    */
   private buildScaleRef(): void {
-    const g = this.scene.add.graphics().setDepth(0);
-    // Ground shared with the monster: its feet at full scale reach ~+58.
-    const groundY = this.y + 58;
-    // Left of the plate with clearance even at MAX monster scale, where the
-    // doily's left edge reaches ~x-106. Measured: at -124 the baker and its
-    // caption both clear the grown plate.
-    const bx = this.x - 124;
-    // faint shadow on the shared ground
-    g.fillStyle(COLORS.ink, 0.12);
-    g.fillEllipse(bx, groundY + 2, 34, 8);
-    // legs
-    g.fillStyle(0x6d5443, 1);
-    g.fillRect(bx - 6, groundY - 12, 4, 12);
-    g.fillRect(bx + 2, groundY - 12, 4, 12);
-    // apron body
-    g.fillStyle(COLORS.plate, 1);
-    g.fillRoundedRect(bx - 11, groundY - 34, 22, 24, 6);
-    g.lineStyle(1.5, COLORS.ink, 0.4);
-    g.strokeRoundedRect(bx - 11, groundY - 34, 22, 24, 6);
-    // head
-    g.fillStyle(0xe8b98a, 1);
-    g.fillCircle(bx, groundY - 40, 8);
-    // toque (chef's hat)
-    g.fillStyle(0xfffaf0, 1);
-    g.fillEllipse(bx, groundY - 52, 20, 12);
-    g.fillEllipse(bx - 6, groundY - 56, 10, 10);
-    g.fillEllipse(bx + 6, groundY - 56, 10, 10);
-    g.fillEllipse(bx, groundY - 58, 11, 11);
-    g.fillStyle(0xfffaf0, 1);
-    g.fillRect(bx - 11, groundY - 50, 22, 6);
-    // a "for scale" tick label under it
-    this.scene.add
-      .text(bx, groundY + 12, "for scale", {
+    this.scaleRef = this.scene.add.graphics().setDepth(0);
+    this.scaleRefLabel = this.scene.add
+      .text(this.x - 124, this.y + 70, "", {
         fontFamily: UI_FONT,
         resolution: TEXT_RES,
         fontSize: "8px",
@@ -183,7 +295,28 @@ export class Monster {
       .setOrigin(0.5)
       .setDepth(0)
       .setName("scaleRefLabel");
-    this.scaleRef = g;
+    this.drawScaleRef(0);
+  }
+
+  /** Pick and draw the reference for a milestone. */
+  private drawScaleRef(milestone: number): void {
+    const g = this.scaleRef;
+    if (!g) return;
+    g.clear();
+    // Ground shared with the monster: its feet at full scale reach ~+58.
+    const gy = this.y + 58;
+    // Left of the plate with clearance even at MAX monster scale, where the
+    // doily's left edge reaches ~x-106.
+    const bx = this.x - 124;
+
+    // faint shadow on the shared ground, under whichever reference is drawn
+    g.fillStyle(COLORS.ink, 0.12);
+    g.fillEllipse(bx, gy + 2, 34, 8);
+
+    const step = SCALE_REFS.findIndex((r) => milestone < r.upTo);
+    const ref = SCALE_REFS[step === -1 ? SCALE_REFS.length - 1 : step];
+    ref.draw(g, bx, gy);
+    this.scaleRefLabel?.setText(ref.name);
   }
 
   /** A round scalloped doily plate the monster sits on. */
@@ -424,6 +557,7 @@ export class Monster {
     // New size, new colour: flare the aura bright for a beat, then settle into
     // a slow breathing loop so the level-up is felt and then lives on quietly.
     this.drawAura(milestone);
+    this.drawScaleRef(milestone);
     this.auraPulse?.remove();
     this.aura.setAlpha(0);
     this.scene.tweens.add({
@@ -456,6 +590,7 @@ export class Monster {
     this.baseScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
     this.container.setScale(this.baseScale);
     this.drawAura(milestone);
+    this.drawScaleRef(milestone);
     if (milestone > 0) this.startAuraBreathing();
     this.layoutLabels();
   }
