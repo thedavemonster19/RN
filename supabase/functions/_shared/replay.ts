@@ -30,14 +30,14 @@ import { MAX_TIER } from "./foods.ts";
  * timestep, so it would be a much bigger and more fragile undertaking.
  */
 
-// v3: the craving band was rebalanced (it now widens instead of sliding up)
-// and the food ladder shrank, so the same seed produces a different run than it
-// did under v2. Bumping means a stale cached client is rejected with a clear
-// version message instead of a baffling "score mismatch".
+// v4: the craving bias now tightens with the monster's size, so appetite grows
+// with it. That changes what a seed produces again, hence another bump — the
+// deployed v3 server would otherwise score the same log differently and reject
+// every honest run.
 //
 // Bump this whenever ANY scoring or economy rule changes, and redeploy the edge
 // function in the same breath — the two must always agree.
-export const REPLAY_VERSION = "v3";
+export const REPLAY_VERSION = "v4";
 
 /** A plain object rather than a `const enum`: those get inlined at compile
  *  time and don't survive the copy into the Deno edge function. */

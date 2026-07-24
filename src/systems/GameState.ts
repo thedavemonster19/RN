@@ -60,11 +60,15 @@ const DROP_QUEUE_LEN = 4;
 
 /**
  * Exponent skewing the craving roll toward the top of its band (see
- * rollCraving). Below 1 biases high; 1 would be uniform. 0.55 keeps roughly
- * three quarters of late-game asks at tier 6+ while leaving a real chance of a
- * small one.
+ * rollCraving). Below 1 biases high; 1 would be uniform.
+ *
+ * It TIGHTENS with the monster, so appetite grows with size rather than just
+ * the band widening: a newborn's asks are spread across its small band, while a
+ * Universe-sized monster asks for the biggest thing it can most of the time.
  */
-const CRAVING_BIAS = 0.55;
+const CRAVING_BIAS_BASE = 0.62;
+const CRAVING_BIAS_PER_MILESTONE = 0.02;
+const CRAVING_BIAS_MIN = 0.34;
 
 /**
  * Pure game logic: what the monster wants, the queue of food you get to drop,
@@ -195,8 +199,13 @@ export class GameState {
     const low = Math.min(MIN_CRAVING_TIER + bump, MAX_TIER - 1);
     const cap = Math.min(4 + bump + Math.floor(m * 0.6), MAX_TIER);
     const span = Math.max(1, cap - low + 1);
-    // pow(u, <1) skews the pick toward the high end of the band.
-    const roll = Math.pow(this.rng.next(), CRAVING_BIAS);
+    // pow(u, <1) skews the pick toward the high end of the band, and the
+    // exponent shrinks as the monster grows, so the skew sharpens with size.
+    const bias = Math.max(
+      CRAVING_BIAS_MIN,
+      CRAVING_BIAS_BASE - m * CRAVING_BIAS_PER_MILESTONE
+    );
+    const roll = Math.pow(this.rng.next(), bias);
     const tier = low + Math.min(span - 1, Math.floor(span * roll));
     return { type: this.rng.pick(TYPES), tier };
   }

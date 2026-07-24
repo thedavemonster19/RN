@@ -7,6 +7,7 @@ import { Monster } from "../objects/Monster";
 import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameState";
 import { Save } from "../systems/Save";
+import { Sfx } from "../systems/Sfx";
 import { Ev, ReplayEvent } from "../systems/Replay";
 import { MODS } from "../systems/Modifiers";
 import { ModeId } from "../systems/Modes";
@@ -382,6 +383,7 @@ export class GameScene extends Phaser.Scene {
     if (this.feeding) return;
     if (!this.state.accepts(food.type, food.tier)) {
       this.monster.refuse();
+      Sfx.refuse();
       const want = this.state.craving.tier;
       this.floatText(
         food.mo.x,
@@ -449,6 +451,7 @@ export class GameScene extends Phaser.Scene {
           // Feeding the last food empties the bin. Checked right here, at the
           // same moment the replay checks it, so the two agree.
           if (this.pile.items.length === 0) {
+            Sfx.clear();
             this.celebrateClear(this.state.awardBinClear());
           }
         }
@@ -497,6 +500,7 @@ export class GameScene extends Phaser.Scene {
   private applyFeed(result: FeedResult, type: FoodType): void {
     const color = foodColor(type, result.tier);
     this.monster.eat();
+    Sfx.feed();
     this.burst(this.monster.mouthX, this.monster.mouthY, color, 12);
     this.floatText(
       this.monster.mouthX,
@@ -511,6 +515,7 @@ export class GameScene extends Phaser.Scene {
       this.monster.grow(this.state.milestone);
       this.monster.setSize(currentSize(this.state.milestone));
       this.drawBin(); // the danger line just crept down
+      Sfx.grow();
       this.celebrate();
     }
   }
@@ -524,6 +529,10 @@ export class GameScene extends Phaser.Scene {
     // something we can cleanly take back.
     this.lastDrop = null;
     this.burst(x, y, foodColor(type, tier), 6);
+    // A ring that expands and fades from the merge point — the merge used to
+    // register only as a few particles, which was easy to miss mid-pile.
+    this.shockwave(x, y, tierRadius(tier), foodColor(type, tier));
+    Sfx.merge(tier);
   }
 
   /** A small undo button with its remaining charges. */
@@ -964,6 +973,10 @@ export class GameScene extends Phaser.Scene {
 
   private celebrate(): void {
     this.cameras.main.shake(220, 0.008);
+    // A ring off the monster plus sparkles, so a level-up is felt and not just
+    // read off a label.
+    this.shockwave(this.monster.mouthX, this.monster.mouthY, 70, COLORS.gold);
+    this.sparkle(this.monster.mouthX, this.monster.mouthY, 14);
     const label = this.add
       .text(
         GAME.WIDTH / 2,
@@ -1004,6 +1017,52 @@ export class GameScene extends Phaser.Scene {
       ease: "Cubic.easeOut",
       onComplete: () => t.destroy(),
     });
+  }
+
+  /**
+   * An expanding ring that fades — the visual "pop" of a merge.
+   *
+   * Drawn as a Graphics circle tweened through a proxy value rather than
+   * scaling a sprite, so the stroke stays a constant weight as it grows
+   * instead of fattening into a blob.
+   */
+  private shockwave(x: number, y: number, r: number, color: number): void {
+    const g = this.add.graphics().setDepth(14);
+    const state = { t: 0 };
+    this.tweens.add({
+      targets: state,
+      t: 1,
+      duration: 340,
+      ease: "Cubic.easeOut",
+      onUpdate: () => {
+        g.clear();
+        const rad = r * (0.7 + state.t * 1.5);
+        g.lineStyle(3 * (1 - state.t) + 0.5, color, 0.75 * (1 - state.t));
+        g.strokeCircle(x, y, rad);
+      },
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  /** Sparkles thrown outward from a point — used for a level-up. */
+  private sparkle(x: number, y: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 60 + Math.random() * 70;
+      const dot = this.add
+        .circle(x, y, 2.5 + Math.random() * 2.5, COLORS.gold, 1)
+        .setDepth(31);
+      this.tweens.add({
+        targets: dot,
+        x: x + Math.cos(a) * dist,
+        y: y + Math.sin(a) * dist,
+        alpha: 0,
+        scale: 0.2,
+        duration: 700 + Math.random() * 300,
+        ease: "Cubic.easeOut",
+        onComplete: () => dot.destroy(),
+      });
+    }
   }
 
   private burst(x: number, y: number, color: number, count: number): void {
@@ -1123,7 +1182,10 @@ export class GameScene extends Phaser.Scene {
       BIN.left,
       line - 8,
       BIN.right - BIN.left,
-      BIN.floor - line + 20,
+      // +8, not +20: the rect starts at line-8, so +20 drew the bin bottom at
+      // BIN.floor + 12 while food actually rests ON BIN.floor — the food looked
+      // like it hovered. drawDanger uses the same figure so the glow lines up.
+      BIN.floor - line + 8,
       18
     );
     g.lineStyle(2, COLORS.ink, 0.28);
@@ -1131,7 +1193,7 @@ export class GameScene extends Phaser.Scene {
       BIN.left,
       line - 8,
       BIN.right - BIN.left,
-      BIN.floor - line + 20,
+      BIN.floor - line + 8,
       18
     );
     g.lineStyle(1.5, COLORS.danger, 0.5);
