@@ -131,31 +131,20 @@ export const BIN = {
 /** Where the monster sits and receives food (it scales up as it grows).
  *  Kept high enough that a fully-grown monster's name label still clears the
  *  fed counter and the food-chain bar along the bottom. */
-export const MONSTER = {
-  // Centred: it used to sit right of centre to leave room for the scale
-  // reference on its left, but that reference is gone (its art survives in
-  // data/refArt for whenever growth gets a new visual).
-  x: 200,
-  y: 560,
-} as const;
+// (There is no fixed MONSTER position any more: each background stage in
+// data/bgArt places the monster at its own spot — see SPOTS there.)
 
 /**
  * The monster's display scale at a milestone: starts small, grows a fixed
  * step per level, capped so the cherry never pokes into the bin above.
  *
  * Lives here rather than in Monster.ts because the BACKGROUNDS need it too:
- * every stage in data/bgArt builds a perch (a roof ridge, an asteroid, a
- * bubble) exactly where the monster's feet will be at that milestone, and
- * that only works if both compute the same scale.
+ * every stage in data/bgArt places the monster at its own spot (see SPOTS
+ * there) and builds a perch exactly where its feet land, and that only
+ * works if both compute the same scale.
  */
 export function monsterScaleFor(milestone: number): number {
   return Math.min(0.4 + milestone * 0.09, 0.95);
-}
-
-/** Where the monster's feet touch, in world y, at a milestone. The feet
- *  ellipses bottom out ~63.5 body units below its origin. */
-export function monsterFeetY(milestone: number): number {
-  return MONSTER.y + 63.5 * monsterScaleFor(milestone);
 }
 
 /**

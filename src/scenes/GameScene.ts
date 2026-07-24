@@ -3,13 +3,20 @@ import {
   GAME,
   BIN,
   COLORS,
-  MONSTER,
   GRAVITY_SCALE,
   UI_FONT,
   TEXT_RES,
   RENDER_SCALE,
 } from "../config";
-import { paintBg, bgKey, BG_W, BG_H, BG_LAST } from "../data/bgArt";
+import {
+  paintBg,
+  paintBgFront,
+  bgKey,
+  bgSpot,
+  BG_W,
+  BG_H,
+  BG_LAST,
+} from "../data/bgArt";
 import { FoodPile, Food } from "../objects/FoodPile";
 import { FoodType, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
@@ -22,7 +29,7 @@ import { Ev, ReplayEvent } from "../systems/Replay";
 import { MODS } from "../systems/Modifiers";
 import { ModeId } from "../systems/Modes";
 import { makeButton } from "../objects/Button";
-import { milestoneName, currentSize } from "../data/milestones";
+import { milestoneName } from "../data/milestones";
 
 const FONT = UI_FONT;
 
@@ -124,6 +131,9 @@ export class GameScene extends Phaser.Scene {
   private dangerGfx!: Phaser.GameObjects.Graphics;
   /** The milestone environment behind everything — see showBackground. */
   private bgImage?: Phaser.GameObjects.Image;
+  /** Some stages put scenery IN FRONT of the monster (the garden fence, the
+   *  bubble glass). Sits between the monster (depth 1) and its label (2). */
+  private bgFront?: Phaser.GameObjects.Image;
   /** Every economic action this run, for server-side verification. */
   private replayLog: ReplayEvent[] = [];
   /** The last drop, while it's still undoable. `foods` holds both pieces under
@@ -213,9 +223,11 @@ export class GameScene extends Phaser.Scene {
     // read as "slow", which is why it was the least distinctive twist. Set
     // after the pile exists — setting it before threw on the first run.
     this.pile.bounce = this.state.has("floaty") ? 0.52 : 0;
-    this.monster = new Monster(this, MONSTER.x, MONSTER.y);
+    // Born straight onto this stage's perch — the spot the background drew
+    // for it, which is different in every environment.
+    const spot = bgSpot(this.state.milestone);
+    this.monster = new Monster(this, spot.x, spot.y);
     this.monster.setName(Save.name);
-    this.monster.setSize(currentSize(this.state.milestone));
     this.hud = new Hud(this, this.state);
 
     // Merging is where the skill shows: a well-aimed drop can set off a chain.
@@ -523,9 +535,11 @@ export class GameScene extends Phaser.Scene {
     }
     if (result.leveledUp) {
       this.monster.grow(this.state.milestone);
-      this.monster.setSize(currentSize(this.state.milestone));
-      // The world falls away behind it — the camera "pulling back" one stage.
+      // The world falls away behind it — the camera "pulling back" one stage —
+      // and the monster ambles over to the new stage's perch.
       this.showBackground(this.state.milestone, true);
+      const next = bgSpot(this.state.milestone);
+      this.monster.moveTo(next.x, next.y, true);
       this.drawBin(); // the danger line just crept down
       Sfx.grow();
       this.celebrate();
@@ -1116,6 +1130,7 @@ export class GameScene extends Phaser.Scene {
     // run's last background still baked) — drop them before baking fresh.
     for (let i = 0; i <= BG_LAST; i++) {
       if (this.textures.exists(`bg${i}`)) this.textures.remove(`bg${i}`);
+      if (this.textures.exists(`bgF${i}`)) this.textures.remove(`bgF${i}`);
     }
     this.showBackground(this.state.milestone, false);
   }
@@ -1135,34 +1150,78 @@ export class GameScene extends Phaser.Scene {
     return key;
   }
 
-  /**
-   * Show the environment for a milestone — the world the monster has grown
-   * into. On a level-up the new stage crossfades over the old, which reads as
-   * the camera pulling back; the old texture is then dropped so only one or
-   * two of these retina-sized canvases ever occupy GPU memory.
-   */
-  private showBackground(milestone: number, fade: boolean): void {
-    const key = this.ensureBg(milestone);
-    if (!this.bgImage) {
-      this.bgImage = this.add
+  /** Bake a stage's foreground layer, or null when it has none. */
+  private ensureBgFront(milestone: number): string | null {
+    const key = bgKey(milestone).replace("bg", "bgF");
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(
+      key,
+      BG_W * RENDER_SCALE,
+      BG_H * RENDER_SCALE
+    );
+    if (!tex) return null;
+    const drew = paintBgFront(tex.getContext(), milestone, RENDER_SCALE);
+    if (!drew) {
+      this.textures.remove(key);
+      return null;
+    }
+    tex.refresh();
+    return key;
+  }
+
+  /** Place or crossfade one layer of the environment; returns the new image. */
+  private swapLayer(
+    current: Phaser.GameObjects.Image | undefined,
+    key: string | null,
+    depth: number,
+    fade: boolean
+  ): Phaser.GameObjects.Image | undefined {
+    if (!key) {
+      // this stage has no such layer — fade the old one away if present
+      if (current) {
+        const old = current;
+        const oldKey = old.texture.key;
+        if (!fade) {
+          old.destroy();
+          if (this.textures.exists(oldKey)) this.textures.remove(oldKey);
+        } else {
+          this.tweens.add({
+            targets: old,
+            alpha: 0,
+            duration: 900,
+            ease: "Sine.easeInOut",
+            onComplete: () => {
+              old.destroy();
+              if (this.textures.exists(oldKey)) this.textures.remove(oldKey);
+            },
+          });
+        }
+      }
+      return undefined;
+    }
+    if (!current) {
+      const img = this.add
         .image(GAME.WIDTH / 2, GAME.HEIGHT / 2, key)
         .setDisplaySize(GAME.WIDTH, GAME.HEIGHT)
-        .setDepth(-10);
-      return;
+        .setDepth(depth);
+      if (fade) {
+        img.setAlpha(0);
+        this.tweens.add({ targets: img, alpha: 1, duration: 900, ease: "Sine.easeInOut" });
+      }
+      return img;
     }
-    const old = this.bgImage;
-    if (old.texture.key === key) return;
+    if (current.texture.key === key) return current;
     if (!fade) {
-      old.setTexture(key).setDisplaySize(GAME.WIDTH, GAME.HEIGHT);
-      return;
+      current.setTexture(key).setDisplaySize(GAME.WIDTH, GAME.HEIGHT);
+      return current;
     }
+    const old = current;
     const oldKey = old.texture.key;
     const next = this.add
       .image(GAME.WIDTH / 2, GAME.HEIGHT / 2, key)
       .setDisplaySize(GAME.WIDTH, GAME.HEIGHT)
-      .setDepth(-10)
+      .setDepth(depth)
       .setAlpha(0);
-    this.bgImage = next;
     this.tweens.add({
       targets: next,
       alpha: 1,
@@ -1173,6 +1232,20 @@ export class GameScene extends Phaser.Scene {
         if (this.textures.exists(oldKey)) this.textures.remove(oldKey);
       },
     });
+    return next;
+  }
+
+  /**
+   * Show the environment for a milestone — the world the monster has grown
+   * into. On a level-up the new stage crossfades over the old, which reads as
+   * the camera pulling back; the old textures are then dropped so only one or
+   * two of these retina-sized canvases ever occupy GPU memory. The foreground
+   * layer (fence, bubble glass) rides along at depth 1.5, in front of the
+   * monster (1) but behind its name label (2).
+   */
+  private showBackground(milestone: number, fade: boolean): void {
+    this.bgImage = this.swapLayer(this.bgImage, this.ensureBg(milestone), -10, fade);
+    this.bgFront = this.swapLayer(this.bgFront, this.ensureBgFront(milestone), 1.5, fade);
   }
 
   /**

@@ -48,8 +48,9 @@ const AURA_COLORS = [
  */
 export class Monster {
   private scene: Phaser.Scene;
-  readonly x: number;
-  readonly y: number;
+  /** Mutable: the monster moves to a new spot in each background stage. */
+  private _x: number;
+  private _y: number;
   private container: Phaser.GameObjects.Container;
   private aura: Phaser.GameObjects.Graphics;
   private auraPulse?: Phaser.Tweens.Tween;
@@ -57,12 +58,11 @@ export class Monster {
   private sizeLabel: Phaser.GameObjects.Text;
   private baseScale = monsterScaleFor(0);
   private monsterName = "";
-  private sizeText = "";
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
-    this.x = x;
-    this.y = y;
+    this._x = x;
+    this._y = y;
 
     // The aura sits behind the body inside the same container, so it scales
     // with the monster automatically.
@@ -91,7 +91,7 @@ export class Monster {
     this.drawAura(0);
 
     this.sizeLabel = scene.add
-      .text(x, y, "0.3 m", {
+      .text(x, y, "", {
         fontFamily: UI_FONT,
         resolution: TEXT_RES,
         fontSize: "17px",
@@ -270,9 +270,42 @@ export class Monster {
    * Keep the size label below the (growing) body — but never so low that a
    * fully-grown monster pushes it into the HUD along the bottom of the screen.
    */
+  get x(): number {
+    return this._x;
+  }
+  get y(): number {
+    return this._y;
+  }
+
+  /**
+   * Send the monster to a new spot — each background stage has its own
+   * perch, and the monster ambles over during the stage crossfade.
+   */
+  moveTo(x: number, y: number, animate: boolean): void {
+    this._x = x;
+    this._y = y;
+    if (!animate) {
+      this.container.setPosition(x, y);
+      this.layoutLabels();
+      return;
+    }
+    this.scene.tweens.add({
+      targets: this.container,
+      x,
+      y,
+      duration: 850,
+      ease: "Sine.easeInOut",
+      onUpdate: () => this.layoutLabels(),
+    });
+  }
+
   private layoutLabels(): void {
     const halfH = BODY_HALF * this.container.scaleY;
-    this.sizeLabel.setY(Math.min(this.y + halfH + 22, LABEL_MAX_Y));
+    // Track the container mid-move so the name walks along with the monster.
+    this.sizeLabel.setX(this.container.x);
+    this.sizeLabel.setY(
+      Math.min(this.container.y + halfH + 22, LABEL_MAX_Y)
+    );
   }
 
   eat(): void {
@@ -384,16 +417,14 @@ export class Monster {
     this.refreshLabel();
   }
 
-  setSize(label: string): void {
-    this.sizeText = label;
-    this.refreshLabel();
-  }
-
-  /** "Blobby · 4.5 m", or just whichever half we actually have. */
+  /**
+   * The label is the NAME only. It used to append the metric size
+   * ("Blobby · 4.5 m"), but the backgrounds now carry the sense of scale —
+   * a monster peeking over a fence or dwarfing a town says more than a
+   * number did, and the number sat oddly beside it.
+   */
   private refreshLabel(): void {
-    this.sizeLabel.setText(
-      [this.monsterName, this.sizeText].filter(Boolean).join("  ·  ")
-    );
+    this.sizeLabel.setText(this.monsterName);
   }
 
   get mouthX(): number {
