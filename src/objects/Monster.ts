@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { COLORS, UI_FONT, TEXT_RES } from "../config";
 import { milestoneName, currentMetres, targetMetres } from "../data/milestones";
+import { refKey } from "../data/refArt";
+import { BODY_ART } from "../data/monsterArt";
 
 /** Scale at the starting (newborn) size, and how big it's allowed to get.
  *  Kept modest so the wider bin and the food-chain bar have room to breathe. */
@@ -23,251 +25,19 @@ type Face = "happy" | "eating" | "refuse";
 /**
  * Which monster to draw.
  *
- * "mochi" is the bakery redesign: a soft strawberry-milk dumpling with a cream
- * swirl on top and simple dot eyes. "classic" is the original teal sprout-blob.
- * Both are fully implemented below, so switching back is this one word — the
- * old design is kept, not deleted, exactly so it can be restored.
+ * "mochi" is the bakery redesign: a strawberry-milk dumpling with a piped cream
+ * swirl and simple dot eyes. Its BODY is a painted texture (data/monsterArt) so
+ * it can carry one clean outline and real shading; only the face is drawn here,
+ * since that changes per expression. "classic" is the original teal sprout-blob,
+ * still fully drawn with Graphics below — switching back is this one word.
  */
 const MONSTER_STYLE: "mochi" | "classic" = "mochi";
 
 /** Eye/mouth ink — warm brown to sit in the cream-and-brown theme, not navy. */
 const INK = 0x4a3327;
 
-/** Muted tones for the scale references, so they never upstage the monster. */
-const REF_DARK = 0x8a6b52;
-const REF_LIGHT = 0xc4a184;
-
-type RefDraw = (g: Phaser.GameObjects.Graphics) => void;
-
 /** Total drawn height of the monster in body units (cherry top to feet). */
 const BODY_SPAN = 144;
-
-/**
- * One reference per milestone, in the SAME order as MILESTONES — so the thing
- * standing beside the monster is exactly what the HUD says it is growing
- * toward. The old ladder was a separate six-item list picked by size, which
- * skipped Country and Continent entirely and stood a planet next to a monster
- * that was only growing to a City.
- *
- * All drawn in NORMALISED units: ground at y=0, top near y=-100, centred on
- * x=0. The caller scales the whole graphics object, so one drawing serves
- * every size and stroke weights stay proportional.
- */
-const REF_DRAWS: RefDraw[] = [
-  // 0 Dog
-  (g) => {
-    g.fillStyle(REF_DARK, 1);
-    g.fillRect(-26, -26, 9, 26);
-    g.fillRect(12, -26, 9, 26);
-    g.fillStyle(REF_LIGHT, 1);
-    g.fillRoundedRect(-32, -62, 58, 38, 16);
-    g.fillCircle(30, -70, 19);
-    g.fillStyle(REF_DARK, 1);
-    g.fillEllipse(38, -60, 16, 10); // snout
-    g.fillEllipse(22, -86, 11, 16); // ear
-    g.fillRect(-40, -70, 12, 6);    // tail
-    g.fillStyle(COLORS.ink, 1);
-    g.fillCircle(35, -74, 3);
-  },
-  // 1 Human (the baker)
-  (g) => {
-    g.fillStyle(REF_DARK, 1);
-    g.fillRect(-10, -20, 7, 20);
-    g.fillRect(3, -20, 7, 20);
-    g.fillStyle(COLORS.plate, 1);
-    g.fillRoundedRect(-18, -58, 36, 40, 10);
-    g.lineStyle(2.5, COLORS.ink, 0.4);
-    g.strokeRoundedRect(-18, -58, 36, 40, 10);
-    g.fillStyle(0xe8b98a, 1);
-    g.fillCircle(0, -68, 13);
-    g.fillStyle(0xfffaf0, 1);
-    g.fillEllipse(0, -88, 33, 20);
-    g.fillEllipse(-10, -94, 17, 17);
-    g.fillEllipse(10, -94, 17, 17);
-    g.fillEllipse(0, -97, 18, 18);
-    g.fillRect(-18, -85, 36, 10);
-  },
-  // 2 Car
-  (g) => {
-    g.fillStyle(REF_LIGHT, 1);
-    g.fillRoundedRect(-46, -46, 92, 26, 8);
-    g.fillRoundedRect(-26, -68, 48, 26, 10);
-    g.lineStyle(2.5, COLORS.ink, 0.35);
-    g.strokeRoundedRect(-46, -46, 92, 26, 8);
-    g.fillStyle(COLORS.plate, 1);
-    g.fillRect(-20, -64, 18, 16);
-    g.fillRect(2, -64, 18, 16);
-    g.fillStyle(COLORS.ink, 1);
-    g.fillCircle(-26, -18, 12);
-    g.fillCircle(26, -18, 12);
-    g.fillStyle(REF_LIGHT, 1);
-    g.fillCircle(-26, -18, 5);
-    g.fillCircle(26, -18, 5);
-  },
-  // 3 House
-  (g) => {
-    g.fillStyle(COLORS.plate, 1);
-    g.fillRect(-30, -56, 60, 56);
-    g.lineStyle(2.5, COLORS.ink, 0.35);
-    g.strokeRect(-30, -56, 60, 56);
-    g.fillStyle(REF_DARK, 1);
-    g.fillTriangle(-38, -56, 38, -56, 0, -98);
-    g.fillRect(-8, -30, 16, 30);
-    g.fillStyle(REF_LIGHT, 1);
-    g.fillRect(11, -47, 14, 14);
-  },
-  // 4 Building
-  (g) => {
-    g.fillStyle(COLORS.plate, 1);
-    g.fillRect(-20, -88, 40, 88);
-    g.lineStyle(2.5, COLORS.ink, 0.35);
-    g.strokeRect(-20, -88, 40, 88);
-    g.fillStyle(REF_LIGHT, 1);
-    for (let r = 0; r < 6; r++)
-      for (let c = 0; c < 2; c++) g.fillRect(-13 + c * 15, -80 + r * 13, 9, 8);
-    g.fillStyle(REF_DARK, 1);
-    g.fillRect(-3, -100, 6, 14);
-  },
-  // 5 Town — a few low buildings
-  (g) => {
-    const bar = (bx: number, w: number, h: number) => {
-      g.fillStyle(COLORS.plate, 1);
-      g.fillRect(bx, -h, w, h);
-      g.lineStyle(2, COLORS.ink, 0.3);
-      g.strokeRect(bx, -h, w, h);
-      g.fillStyle(REF_LIGHT, 1);
-      for (let r = 0; r < Math.floor(h / 20); r++) g.fillRect(bx + 5, -h + 8 + r * 20, w - 10, 7);
-    };
-    bar(-44, 24, 52);
-    bar(-16, 28, 84);
-    bar(18, 26, 40);
-  },
-  // 6 City — a denser, taller skyline
-  (g) => {
-    const bar = (bx: number, w: number, h: number) => {
-      g.fillStyle(COLORS.plate, 1);
-      g.fillRect(bx, -h, w, h);
-      g.lineStyle(1.8, COLORS.ink, 0.3);
-      g.strokeRect(bx, -h, w, h);
-      g.fillStyle(REF_LIGHT, 1);
-      for (let r = 0; r < Math.floor(h / 16); r++) g.fillRect(bx + 4, -h + 6 + r * 16, w - 8, 6);
-    };
-    bar(-50, 18, 46);
-    bar(-30, 20, 74);
-    bar(-8, 22, 100);
-    bar(16, 19, 62);
-    bar(37, 16, 38);
-    g.fillStyle(REF_DARK, 1);
-    g.fillRect(0, -112, 4, 14);
-  },
-  // 7 Country — a landmass with a flag
-  (g) => {
-    g.fillStyle(REF_LIGHT, 1);
-    g.beginPath();
-    g.moveTo(-52, 0);
-    g.lineTo(-58, -26);
-    g.lineTo(-30, -44);
-    g.lineTo(2, -38);
-    g.lineTo(30, -50);
-    g.lineTo(56, -30);
-    g.lineTo(48, -4);
-    g.lineTo(12, 2);
-    g.closePath();
-    g.fillPath();
-    g.lineStyle(2, COLORS.ink, 0.3);
-    g.strokePath();
-    g.fillStyle(REF_DARK, 1);
-    g.fillRect(-3, -96, 4, 52);
-    g.fillTriangle(1, -96, 1, -76, 30, -86);
-  },
-  // 8 Continent — a bigger, more ragged landmass
-  (g) => {
-    g.fillStyle(REF_LIGHT, 1);
-    g.beginPath();
-    g.moveTo(-58, -6);
-    g.lineTo(-66, -40);
-    g.lineTo(-40, -66);
-    g.lineTo(-6, -58);
-    g.lineTo(16, -80);
-    g.lineTo(48, -66);
-    g.lineTo(64, -34);
-    g.lineTo(44, -6);
-    g.lineTo(6, 2);
-    g.closePath();
-    g.fillPath();
-    g.lineStyle(2.5, COLORS.ink, 0.3);
-    g.strokePath();
-    g.fillStyle(REF_DARK, 0.55);
-    g.fillEllipse(-24, -38, 30, 18);
-    g.fillEllipse(28, -46, 26, 16);
-  },
-  // 9 Planet
-  (g) => {
-    g.fillStyle(REF_LIGHT, 1);
-    g.fillCircle(0, -50, 40);
-    g.fillStyle(REF_DARK, 1);
-    g.fillEllipse(-12, -60, 28, 16);
-    g.fillEllipse(14, -40, 22, 14);
-    g.lineStyle(4.5, REF_DARK, 0.75);
-    g.strokeEllipse(0, -44, 104, 32);
-  },
-  // 10 Solar System — a sun with orbits
-  (g) => {
-    g.lineStyle(2.5, REF_DARK, 0.55);
-    for (const rx of [34, 54, 74]) g.strokeEllipse(0, -50, rx * 2, rx * 0.62);
-    g.fillStyle(COLORS.gold, 1);
-    g.fillCircle(0, -50, 15);
-    g.fillStyle(REF_DARK, 1);
-    g.fillCircle(-34, -46, 6);
-    g.fillCircle(48, -56, 7);
-    g.fillCircle(-70, -52, 5);
-  },
-  // 11 Universe — a galaxy
-  (g) => {
-    g.fillStyle(REF_LIGHT, 0.5);
-    g.fillEllipse(0, -52, 98, 58);
-    g.fillStyle(REF_DARK, 1);
-    for (const dir of [1, -1]) {
-      for (let i = 0; i < 10; i++) {
-        const t = i / 9;
-        const a = dir * (t * Math.PI * 1.25);
-        const rad = 7 + t * 43;
-        g.fillCircle(Math.cos(a) * rad * dir, -52 + Math.sin(a) * rad * 0.5, 5 - t * 3);
-      }
-    }
-    g.fillStyle(0xfffaf0, 1);
-    g.fillCircle(0, -52, 7);
-  },
-  // 12 Multiverse — several bubbles, each its own swirl
-  (g) => {
-    const bubble = (cx: number, cy: number, r: number) => {
-      g.fillStyle(REF_LIGHT, 0.45);
-      g.fillCircle(cx, cy, r);
-      g.lineStyle(2, REF_DARK, 0.5);
-      g.strokeCircle(cx, cy, r);
-      g.fillStyle(REF_DARK, 1);
-      for (let i = 0; i < 5; i++) {
-        const t = i / 4;
-        const a = t * Math.PI * 1.4;
-        g.fillCircle(cx + Math.cos(a) * r * 0.6 * t, cy + Math.sin(a) * r * 0.5 * t, r * 0.13);
-      }
-    };
-    bubble(-34, -40, 24);
-    bubble(22, -62, 30);
-    bubble(40, -22, 17);
-  },
-  // 13 Dimension — a rift
-  (g) => {
-    g.fillStyle(REF_DARK, 0.5);
-    g.fillEllipse(0, -52, 62, 96);
-    g.fillStyle(COLORS.plate, 0.85);
-    g.fillEllipse(0, -52, 38, 74);
-    g.fillStyle(REF_DARK, 1);
-    g.fillEllipse(0, -52, 15, 44);
-    g.lineStyle(2.5, COLORS.gold, 0.8);
-    g.strokeEllipse(0, -52, 62, 96);
-  },
-];
 
 /**
  * One aura colour per size milestone, cycling once it runs off the end. Warm
@@ -297,7 +67,7 @@ export class Monster {
   private face: Phaser.GameObjects.Graphics;
   private sizeLabel: Phaser.GameObjects.Text;
   /** A fixed-size figure the monster is compared against — see drawScaleRef. */
-  private scaleRef?: Phaser.GameObjects.Graphics;
+  private scaleRef?: Phaser.GameObjects.Image;
   private scaleRefLabel?: Phaser.GameObjects.Text;
   private baseScale = BASE_SCALE;
   private monsterName = "";
@@ -311,8 +81,20 @@ export class Monster {
     // The aura sits behind the body inside the same container, so it scales
     // with the monster automatically.
     this.aura = scene.add.graphics();
-    const body = scene.add.graphics();
-    this.drawBody(body);
+    // The mochi body is a pre-painted texture (see data/monsterArt): a single
+    // silhouette with one outline and real shading, which overlapping Graphics
+    // ellipses could never carry. The classic style still draws with Graphics.
+    const body: Phaser.GameObjects.GameObject =
+      MONSTER_STYLE === "mochi"
+        ? scene.add
+            .image(0, 0, "monsterBody")
+            .setOrigin(BODY_ART.ox / BODY_ART.w, BODY_ART.oy / BODY_ART.h)
+            .setDisplaySize(BODY_ART.w, BODY_ART.h)
+        : (() => {
+            const g = scene.add.graphics();
+            this.drawBody(g);
+            return g;
+          })();
     this.face = scene.add.graphics();
 
     this.container = scene.add
@@ -384,7 +166,12 @@ export class Monster {
    * Drawn OUTSIDE the scaling container so it never scales with the monster.
    */
   private buildScaleRef(): void {
-    this.scaleRef = this.scene.add.graphics().setDepth(0);
+    // Bottom-centre origin so the artwork stands ON the ground line whatever
+    // its height.
+    this.scaleRef = this.scene.add
+      .image(this.x - 150, this.y + 58, refKey(0))
+      .setOrigin(0.5, 1)
+      .setDepth(0);
     this.scaleRefLabel = this.scene.add
       .text(this.x - 150, this.y + 70, "", {
         fontFamily: UI_FONT,
@@ -414,12 +201,11 @@ export class Monster {
    * what it is chasing, and a huge leap looks bigger than a small one.
    */
   private drawScaleRef(milestone: number): void {
-    const g = this.scaleRef;
-    if (!g) return;
-    g.clear();
+    const img = this.scaleRef;
+    if (!img) return;
 
     const m = Math.max(0, milestone);
-    const draw = REF_DRAWS[Math.min(m, REF_DRAWS.length - 1)];
+    img.setTexture(refKey(m));
 
     const monsterScale = Math.min(BASE_SCALE + m * 0.09, MAX_SCALE);
     const monsterPx = BODY_SPAN * monsterScale;
@@ -430,22 +216,23 @@ export class Monster {
     // bin. It still exceeds the monster's own max of ~137px.
     const heightPx = Math.max(38, Math.min(monsterPx * compressed, 142));
 
-    const gy = this.y + 58;
-    const bx = this.x - 150;
-    g.setPosition(bx, gy).setScale(heightPx / 100);
-
-    // Everything below is in normalised units (ground y=0, top y=-100).
-    g.fillStyle(COLORS.ink, 0.12);
-    g.fillEllipse(0, 3, 62, 13);
-    draw(g);
+    // Keep the artwork's own aspect — the texture is cropped to its bounds, so
+    // a car stays short and wide and a tower tall and narrow.
+    const src = img.texture.getSourceImage() as { width: number; height: number };
+    const aspect = src && src.height ? src.width / src.height : 1;
+    img.setDisplaySize(heightPx * aspect, heightPx);
+    img.setPosition(this.x - 150, this.y + 58);
 
     this.scaleRefLabel?.setText(milestoneName(m).toLowerCase());
   }
 
-  /** The blob itself — everything that never changes with mood. */
+  /**
+   * The classic body, drawn with Graphics. The mochi body is NOT here — it is a
+   * pre-painted texture (data/monsterArt), because a single outline and real
+   * shading are impossible across a stack of overlapping Graphics ellipses.
+   */
   private drawBody(g: Phaser.GameObjects.Graphics): void {
-    if (MONSTER_STYLE === "classic") return this.drawBodyClassic(g);
-    return this.drawBodyMochi(g);
+    this.drawBodyClassic(g);
   }
 
   /** Eyes and mouth, redrawn per expression. */
@@ -456,51 +243,7 @@ export class Monster {
 
   // --- bakery redesign: a strawberry-milk mochi dumpling --------------------
 
-  /**
-   * A soft, squat dumpling — a little wider than tall, the way a piped blob of
-   * dough settles. Strawberry-milk pink with a cream belly and a small cream
-   * swirl piped on top, so it reads as something from the same case as the
-   * food it eats.
-   */
-  private drawBodyMochi(g: Phaser.GameObjects.Graphics): void {
-    // little rounded feet peeking out, so it reads as sitting
-    g.fillStyle(COLORS.berryDeep, 1);
-    g.fillEllipse(-26, 52, 30, 16);
-    g.fillEllipse(26, 52, 30, 16);
-
-    // a soft deeper rim under the body gives it weight
-    g.fillStyle(COLORS.berryDeep, 1);
-    g.fillEllipse(0, 16, 128, 104);
-
-    // main body: broad and low, rounded like set dough
-    g.fillStyle(COLORS.berry, 1);
-    g.fillEllipse(0, 10, 120, 96);
-    g.fillEllipse(0, -14, 104, 84);
-
-    // a top highlight, the sheen on a glazed bun
-    g.fillStyle(0xf7a6bd, 1);
-    g.fillEllipse(-14, -34, 56, 30);
-
-    // cream belly patch
-    g.fillStyle(COLORS.plate, 1);
-    g.fillEllipse(0, 28, 74, 52);
-
-    // a cream swirl piped on top instead of the old leaf sprout
-    g.fillStyle(COLORS.plate, 1);
-    g.fillEllipse(0, -58, 26, 16);
-    g.fillEllipse(0, -66, 18, 12);
-    g.fillEllipse(0, -72, 10, 8);
-    // a cherry dot to finish it
-    g.fillStyle(COLORS.berryDeep, 1);
-    g.fillCircle(0, -78, 5);
-
-    // blush — nearly opaque so it doesn't average to grey over the pink
-    g.fillStyle(0xf94d7d, 0.5);
-    g.fillEllipse(-42, 4, 18, 11);
-    g.fillEllipse(42, 4, 18, 11);
-  }
-
-  /** Simple dot eyes and a tiny mouth — deliberately minimal and cute. */
+  /** Simple dot eyes  /** Simple dot eyes and a tiny mouth — deliberately minimal and cute. */
   private setFaceMochi(mood: Face): void {
     const g = this.face;
     g.clear();
