@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>art sheet</title>
+    <style>
+      body { background: #fdf6ec; font: 12px system-ui; margin: 12px; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .cell { text-align: center; }
+      canvas { background: #fff; border: 1px solid #ddd; display: block; flex: none; }
+      .cell { flex: none; }
+      h3 { margin: 14px 0 6px; }
+    </style>
+  </head>
+  <body>
+    <h3>full size (140px)</h3>
+    <div class="row" id="big"></div>
+    <h3>in-game size (44px, cropped like BootScene)</h3>
+    <div class="row" id="small"></div>
+    <h3>detail</h3>
+    <div class="row" id="detail"></div>
+    <h3>monster body</h3>
+    <div class="row" id="mon"></div>
+    <script type="module">
+      import { REF_ART, paintRef } from "/src/data/refArt.ts";
+      import { paintMonsterBody, BODY_ART } from "/src/data/monsterArt.ts";
+
+      function make(i, size, parent, label) {
+        const wrap = document.createElement("div");
+        wrap.className = "cell";
+        const c = document.createElement("canvas");
+        c.width = size; c.height = size;
+        paintRef(c.getContext("2d"), i, size);
+        wrap.appendChild(c);
+        if (label) {
+          const t = document.createElement("div");
+          t.textContent = REF_ART[i].name;
+          wrap.appendChild(t);
+        }
+        parent.appendChild(wrap);
+      }
+      REF_ART.forEach((_, i) => make(i, 140, document.getElementById("big"), true));
+      REF_ART.forEach((_, i) => make(i, 44, document.getElementById("small"), false));
+      const focus = (new URLSearchParams(location.search).get("focus") || "0,1,2,7,8,11")
+        .split(",").map(Number);
+      focus.forEach((i) => make(i, 300, document.getElementById("detail"), true));
+
+      for (const s of [1, 3]) {
+        const c = document.createElement("canvas");
+        c.width = BODY_ART.w * s; c.height = BODY_ART.h * s;
+        paintMonsterBody(c.getContext("2d"), s);
+        document.getElementById("mon").appendChild(c);
+      }
+
+      // report opaque bounds, the way BootScene crops
+      const report = REF_ART.map((a, i) => {
+        const S = 256;
+        const c = document.createElement("canvas");
+        c.width = S; c.height = S;
+        const ctx = c.getContext("2d");
+        paintRef(ctx, i, S);
+        const d = ctx.getImageData(0, 0, S, S).data;
+        let x0 = S, y0 = S, x1 = -1, y1 = -1;
+        for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+          if (d[(y * S + x) * 4 + 3] > 8) {
+            if (x < x0) x0 = x; if (x > x1) x1 = x;
+            if (y < y0) y0 = y; if (y > y1) y1 = y;
+          }
+        }
+        return { name: a.name, x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1,
+                 aspect: +((x1 - x0 + 1) / (y1 - y0 + 1)).toFixed(2),
+                 clippedLeft: x0 <= 0, clippedRight: x1 >= S - 1,
+                 clippedTop: y0 <= 0, clippedBottom: y1 >= S - 1 };
+      });
+      window.__bounds = report;
+      console.log(JSON.stringify(report));
+    </script>
+  </body>
+</html>
