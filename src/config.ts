@@ -140,6 +140,25 @@ export const MONSTER = {
 } as const;
 
 /**
+ * The monster's display scale at a milestone: starts small, grows a fixed
+ * step per level, capped so the cherry never pokes into the bin above.
+ *
+ * Lives here rather than in Monster.ts because the BACKGROUNDS need it too:
+ * every stage in data/bgArt builds a perch (a roof ridge, an asteroid, a
+ * bubble) exactly where the monster's feet will be at that milestone, and
+ * that only works if both compute the same scale.
+ */
+export function monsterScaleFor(milestone: number): number {
+  return Math.min(0.4 + milestone * 0.09, 0.95);
+}
+
+/** Where the monster's feet touch, in world y, at a milestone. The feet
+ *  ellipses bottom out ~63.5 body units below its origin. */
+export function monsterFeetY(milestone: number): number {
+  return MONSTER.y + 63.5 * monsterScaleFor(milestone);
+}
+
+/**
  * Matter's default gravity scale (0.001) is too weak here — high static
  * friction lets the pile jam into a floating arch instead of packing. But the
  * old 0.006 was the jitter: contacts that heavy never quite settle, and any

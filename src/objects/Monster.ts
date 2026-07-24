@@ -1,17 +1,11 @@
 import Phaser from "phaser";
-import { COLORS, UI_FONT, TEXT_RES } from "../config";
+import { COLORS, UI_FONT, TEXT_RES, monsterScaleFor } from "../config";
 import { BODY_ART } from "../data/monsterArt";
 
-/** Scale at the starting (newborn) size, and how big it's allowed to get.
- *  Kept modest so the wider bin and the food-chain bar have room to breathe. */
-const BASE_SCALE = 0.4;
-/**
- * The mochi's cherry sits at body y=-83. At the old cap of 1.1 that put its top
- * at 560 - 83*1.1 = 469 — INSIDE the bin, whose floor is 470, so the hat poked
- * through the bin's bottom edge. 0.95 keeps the whole monster clear of it while
- * still nearly doubling its size over a run.
- */
-const MAX_SCALE = 0.95;
+// Growth scale now lives in config (monsterScaleFor) because the backgrounds
+// need the same numbers to build each stage's perch under the monster's feet.
+// The cap exists because the mochi's cherry sits at body y=-83: uncapped, its
+// top would poke into the bin, whose floor is at 470.
 /** Half the drawn body height, for placing the size label below. */
 const BODY_HALF = 64;
 /** The lowest the name/size label may sit before it collides with the fed
@@ -61,7 +55,7 @@ export class Monster {
   private auraPulse?: Phaser.Tweens.Tween;
   private face: Phaser.GameObjects.Graphics;
   private sizeLabel: Phaser.GameObjects.Text;
-  private baseScale = BASE_SCALE;
+  private baseScale = monsterScaleFor(0);
   private monsterName = "";
   private sizeText = "";
 
@@ -296,7 +290,7 @@ export class Monster {
 
   /** Grow when a milestone is reached — scale tracks how big it's meant to be. */
   grow(milestone: number): void {
-    this.baseScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
+    this.baseScale = monsterScaleFor(milestone);
     this.scene.tweens.add({
       targets: this.container,
       scale: this.baseScale,
@@ -337,7 +331,7 @@ export class Monster {
   /** Restore the aura for a milestone without replaying the level-up flare —
    *  used when a scene rebuilds the monster mid-run. */
   setMilestone(milestone: number): void {
-    this.baseScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
+    this.baseScale = monsterScaleFor(milestone);
     this.container.setScale(this.baseScale);
     this.drawAura(milestone);
     if (milestone > 0) this.startAuraBreathing();

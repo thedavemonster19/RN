@@ -27,6 +27,7 @@
       import { REF_ART, paintRef } from "/src/data/refArt.ts";
       import { paintMonsterBody, BODY_ART } from "/src/data/monsterArt.ts";
       import { paintBg, BG_W, BG_H, BG_LAST } from "/src/data/bgArt.ts";
+      import { MONSTER, monsterScaleFor, monsterFeetY } from "/src/config.ts";
 
       const BG_NAMES = ["bakery (to dog)", "garden (to human)", "street (to car)",
         "rooftops (to house)", "skyline (to building)", "above town (to town)",
@@ -39,7 +40,29 @@
         const c = document.createElement("canvas");
         c.width = BG_W; c.height = BG_H;
         c.style.width = BG_W / 2 + "px";
-        paintBg(c.getContext("2d"), i, 1);
+        const g = c.getContext("2d");
+        paintBg(g, i, 1);
+        // monster proxy at the true milestone scale, to judge the perch
+        const s = monsterScaleFor(i);
+        g.save();
+        g.translate(MONSTER.x, MONSTER.y);
+        g.fillStyle = "rgba(239,122,155,0.92)";
+        g.beginPath();
+        g.ellipse(0, 0, 62 * s, 58 * s, 0, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "rgba(224,83,122,0.95)";
+        g.beginPath();
+        g.arc(0, -86 * s, 8 * s, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        // the feet line, as a thin tick
+        g.strokeStyle = "#20a060";
+        g.lineWidth = 1.5;
+        const fy = monsterFeetY(i);
+        g.beginPath();
+        g.moveTo(MONSTER.x - 90, fy);
+        g.lineTo(MONSTER.x + 90, fy);
+        g.stroke();
         wrap.appendChild(c);
         const t = document.createElement("div");
         t.textContent = i + " " + BG_NAMES[i];
