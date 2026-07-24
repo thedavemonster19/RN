@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME, COLORS, RENDER_SCALE } from "./config";
+import { Sfx } from "./systems/Sfx";
 import { BootScene } from "./scenes/BootScene";
 import { MenuScene } from "./scenes/MenuScene";
 import { GameScene } from "./scenes/GameScene";
@@ -56,6 +57,18 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 (window as unknown as { game: Phaser.Game }).game = game;
+// Exposed so audio can be checked or muted from the console: `sfx.enabled =
+// false` silences the game, `sfx.state` reports whether the context is running.
+(window as unknown as { sfx: unknown }).sfx = Sfx;
+
+// Start audio on the first real tap. Browsers only allow it from inside a
+// gesture handler, and the game's own sounds all fire asynchronously well after
+// the tap that caused them — so without this the context stays suspended and
+// everything is silent. Listens once, on the document, so it catches the very
+// first interaction wherever it lands.
+for (const evt of ["pointerdown", "touchstart", "keydown"]) {
+  document.addEventListener(evt, () => Sfx.unlock(), { once: true, passive: true });
+}
 
 /**
  * Zoom every scene's camera by RENDER_SCALE so the oversized canvas still shows

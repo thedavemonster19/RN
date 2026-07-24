@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { COLORS, UI_FONT, TEXT_RES } from "../config";
+import { milestoneName, currentMetres, targetMetres } from "../data/milestones";
 
 /** Scale at the starting (newborn) size, and how big it's allowed to get.
  *  Kept modest so the wider bin and the food-chain bar have room to breathe. */
@@ -36,140 +37,235 @@ const INK = 0x4a3327;
 const REF_DARK = 0x8a6b52;
 const REF_LIGHT = 0xc4a184;
 
-type ScaleRef = {
-  /** What this thing really is, in metres — the whole point of the ladder. */
-  realMetres: number;
-  name: string;
-  /**
-   * Drawn in NORMALISED units: ground at y=0, top at y=-100, centred on x=0.
-   * The caller scales the whole graphics object, so one drawing serves every
-   * size and stroke weights stay proportional.
-   */
-  draw: (g: Phaser.GameObjects.Graphics) => void;
-};
+type RefDraw = (g: Phaser.GameObjects.Graphics) => void;
 
 /** Total drawn height of the monster in body units (cherry top to feet). */
 const BODY_SPAN = 144;
 
 /**
- * How big the monster actually is at each milestone, in metres — the same
- * figures the size readout shows. Used to scale the comparison honestly.
- */
-const MONSTER_METRES = [
-  0.6, 1.8, 4.5, 9, 50, 2e3, 2e4, 2e6, 8e6, 1.27e7, 9e12, 8.8e26, 1e30, 1e33,
-];
-
-/**
- * The comparison ladder, smallest first, each with its real size.
+ * One reference per milestone, in the SAME order as MILESTONES — so the thing
+ * standing beside the monster is exactly what the HUD says it is growing
+ * toward. The old ladder was a separate six-item list picked by size, which
+ * skipped Country and Continent entirely and stood a planet next to a monster
+ * that was only growing to a City.
  *
- * The reference is chosen as the SMALLEST thing the monster has not yet
- * outgrown, and drawn at the true size ratio between them. That is the fix for
- * the old version, which drew every reference at one fixed size — so a
- * dog-sized monster appeared to tower over a house, which is nonsense. Now the
- * monster starts visibly smaller than the reference and closes the gap as it
- * grows, then a bigger reference takes over.
+ * All drawn in NORMALISED units: ground at y=0, top near y=-100, centred on
+ * x=0. The caller scales the whole graphics object, so one drawing serves
+ * every size and stroke weights stay proportional.
  */
-const SCALE_REFS: ScaleRef[] = [
-  {
-    realMetres: 1.8,
-    name: "baker",
-    draw: (g) => {
-      g.fillStyle(REF_DARK, 1);
-      g.fillRect(-10, -20, 7, 20);
-      g.fillRect(3, -20, 7, 20);
-      g.fillStyle(COLORS.plate, 1);
-      g.fillRoundedRect(-18, -58, 36, 40, 10);
-      g.lineStyle(2.5, COLORS.ink, 0.4);
-      g.strokeRoundedRect(-18, -58, 36, 40, 10);
-      g.fillStyle(0xe8b98a, 1);
-      g.fillCircle(0, -68, 13);
-      g.fillStyle(0xfffaf0, 1);
-      g.fillEllipse(0, -88, 33, 20);
-      g.fillEllipse(-10, -94, 17, 17);
-      g.fillEllipse(10, -94, 17, 17);
-      g.fillEllipse(0, -97, 18, 18);
-      g.fillRect(-18, -85, 36, 10);
-    },
+const REF_DRAWS: RefDraw[] = [
+  // 0 Dog
+  (g) => {
+    g.fillStyle(REF_DARK, 1);
+    g.fillRect(-26, -26, 9, 26);
+    g.fillRect(12, -26, 9, 26);
+    g.fillStyle(REF_LIGHT, 1);
+    g.fillRoundedRect(-32, -62, 58, 38, 16);
+    g.fillCircle(30, -70, 19);
+    g.fillStyle(REF_DARK, 1);
+    g.fillEllipse(38, -60, 16, 10); // snout
+    g.fillEllipse(22, -86, 11, 16); // ear
+    g.fillRect(-40, -70, 12, 6);    // tail
+    g.fillStyle(COLORS.ink, 1);
+    g.fillCircle(35, -74, 3);
   },
-  {
-    realMetres: 9,
-    name: "house",
-    draw: (g) => {
-      g.fillStyle(COLORS.plate, 1);
-      g.fillRect(-30, -56, 60, 56);
-      g.lineStyle(2.5, COLORS.ink, 0.35);
-      g.strokeRect(-30, -56, 60, 56);
-      g.fillStyle(REF_DARK, 1);
-      g.fillTriangle(-38, -56, 38, -56, 0, -98);
-      g.fillRect(-8, -30, 16, 30);
-      g.fillStyle(REF_LIGHT, 1);
-      g.fillRect(11, -47, 14, 14);
-    },
+  // 1 Human (the baker)
+  (g) => {
+    g.fillStyle(REF_DARK, 1);
+    g.fillRect(-10, -20, 7, 20);
+    g.fillRect(3, -20, 7, 20);
+    g.fillStyle(COLORS.plate, 1);
+    g.fillRoundedRect(-18, -58, 36, 40, 10);
+    g.lineStyle(2.5, COLORS.ink, 0.4);
+    g.strokeRoundedRect(-18, -58, 36, 40, 10);
+    g.fillStyle(0xe8b98a, 1);
+    g.fillCircle(0, -68, 13);
+    g.fillStyle(0xfffaf0, 1);
+    g.fillEllipse(0, -88, 33, 20);
+    g.fillEllipse(-10, -94, 17, 17);
+    g.fillEllipse(10, -94, 17, 17);
+    g.fillEllipse(0, -97, 18, 18);
+    g.fillRect(-18, -85, 36, 10);
   },
-  {
-    realMetres: 50,
-    name: "tower",
-    draw: (g) => {
+  // 2 Car
+  (g) => {
+    g.fillStyle(REF_LIGHT, 1);
+    g.fillRoundedRect(-46, -46, 92, 26, 8);
+    g.fillRoundedRect(-26, -68, 48, 26, 10);
+    g.lineStyle(2.5, COLORS.ink, 0.35);
+    g.strokeRoundedRect(-46, -46, 92, 26, 8);
+    g.fillStyle(COLORS.plate, 1);
+    g.fillRect(-20, -64, 18, 16);
+    g.fillRect(2, -64, 18, 16);
+    g.fillStyle(COLORS.ink, 1);
+    g.fillCircle(-26, -18, 12);
+    g.fillCircle(26, -18, 12);
+    g.fillStyle(REF_LIGHT, 1);
+    g.fillCircle(-26, -18, 5);
+    g.fillCircle(26, -18, 5);
+  },
+  // 3 House
+  (g) => {
+    g.fillStyle(COLORS.plate, 1);
+    g.fillRect(-30, -56, 60, 56);
+    g.lineStyle(2.5, COLORS.ink, 0.35);
+    g.strokeRect(-30, -56, 60, 56);
+    g.fillStyle(REF_DARK, 1);
+    g.fillTriangle(-38, -56, 38, -56, 0, -98);
+    g.fillRect(-8, -30, 16, 30);
+    g.fillStyle(REF_LIGHT, 1);
+    g.fillRect(11, -47, 14, 14);
+  },
+  // 4 Building
+  (g) => {
+    g.fillStyle(COLORS.plate, 1);
+    g.fillRect(-20, -88, 40, 88);
+    g.lineStyle(2.5, COLORS.ink, 0.35);
+    g.strokeRect(-20, -88, 40, 88);
+    g.fillStyle(REF_LIGHT, 1);
+    for (let r = 0; r < 6; r++)
+      for (let c = 0; c < 2; c++) g.fillRect(-13 + c * 15, -80 + r * 13, 9, 8);
+    g.fillStyle(REF_DARK, 1);
+    g.fillRect(-3, -100, 6, 14);
+  },
+  // 5 Town — a few low buildings
+  (g) => {
+    const bar = (bx: number, w: number, h: number) => {
       g.fillStyle(COLORS.plate, 1);
-      g.fillRect(-20, -88, 40, 88);
-      g.lineStyle(2.5, COLORS.ink, 0.35);
-      g.strokeRect(-20, -88, 40, 88);
+      g.fillRect(bx, -h, w, h);
+      g.lineStyle(2, COLORS.ink, 0.3);
+      g.strokeRect(bx, -h, w, h);
       g.fillStyle(REF_LIGHT, 1);
-      for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 2; c++) g.fillRect(-13 + c * 15, -80 + r * 13, 9, 8);
+      for (let r = 0; r < Math.floor(h / 20); r++) g.fillRect(bx + 5, -h + 8 + r * 20, w - 10, 7);
+    };
+    bar(-44, 24, 52);
+    bar(-16, 28, 84);
+    bar(18, 26, 40);
+  },
+  // 6 City — a denser, taller skyline
+  (g) => {
+    const bar = (bx: number, w: number, h: number) => {
+      g.fillStyle(COLORS.plate, 1);
+      g.fillRect(bx, -h, w, h);
+      g.lineStyle(1.8, COLORS.ink, 0.3);
+      g.strokeRect(bx, -h, w, h);
+      g.fillStyle(REF_LIGHT, 1);
+      for (let r = 0; r < Math.floor(h / 16); r++) g.fillRect(bx + 4, -h + 6 + r * 16, w - 8, 6);
+    };
+    bar(-50, 18, 46);
+    bar(-30, 20, 74);
+    bar(-8, 22, 100);
+    bar(16, 19, 62);
+    bar(37, 16, 38);
+    g.fillStyle(REF_DARK, 1);
+    g.fillRect(0, -112, 4, 14);
+  },
+  // 7 Country — a landmass with a flag
+  (g) => {
+    g.fillStyle(REF_LIGHT, 1);
+    g.beginPath();
+    g.moveTo(-52, 0);
+    g.lineTo(-58, -26);
+    g.lineTo(-30, -44);
+    g.lineTo(2, -38);
+    g.lineTo(30, -50);
+    g.lineTo(56, -30);
+    g.lineTo(48, -4);
+    g.lineTo(12, 2);
+    g.closePath();
+    g.fillPath();
+    g.lineStyle(2, COLORS.ink, 0.3);
+    g.strokePath();
+    g.fillStyle(REF_DARK, 1);
+    g.fillRect(-3, -96, 4, 52);
+    g.fillTriangle(1, -96, 1, -76, 30, -86);
+  },
+  // 8 Continent — a bigger, more ragged landmass
+  (g) => {
+    g.fillStyle(REF_LIGHT, 1);
+    g.beginPath();
+    g.moveTo(-58, -6);
+    g.lineTo(-66, -40);
+    g.lineTo(-40, -66);
+    g.lineTo(-6, -58);
+    g.lineTo(16, -80);
+    g.lineTo(48, -66);
+    g.lineTo(64, -34);
+    g.lineTo(44, -6);
+    g.lineTo(6, 2);
+    g.closePath();
+    g.fillPath();
+    g.lineStyle(2.5, COLORS.ink, 0.3);
+    g.strokePath();
+    g.fillStyle(REF_DARK, 0.55);
+    g.fillEllipse(-24, -38, 30, 18);
+    g.fillEllipse(28, -46, 26, 16);
+  },
+  // 9 Planet
+  (g) => {
+    g.fillStyle(REF_LIGHT, 1);
+    g.fillCircle(0, -50, 40);
+    g.fillStyle(REF_DARK, 1);
+    g.fillEllipse(-12, -60, 28, 16);
+    g.fillEllipse(14, -40, 22, 14);
+    g.lineStyle(4.5, REF_DARK, 0.75);
+    g.strokeEllipse(0, -44, 104, 32);
+  },
+  // 10 Solar System — a sun with orbits
+  (g) => {
+    g.lineStyle(2.5, REF_DARK, 0.55);
+    for (const rx of [34, 54, 74]) g.strokeEllipse(0, -50, rx * 2, rx * 0.62);
+    g.fillStyle(COLORS.gold, 1);
+    g.fillCircle(0, -50, 15);
+    g.fillStyle(REF_DARK, 1);
+    g.fillCircle(-34, -46, 6);
+    g.fillCircle(48, -56, 7);
+    g.fillCircle(-70, -52, 5);
+  },
+  // 11 Universe — a galaxy
+  (g) => {
+    g.fillStyle(REF_LIGHT, 0.5);
+    g.fillEllipse(0, -52, 98, 58);
+    g.fillStyle(REF_DARK, 1);
+    for (const dir of [1, -1]) {
+      for (let i = 0; i < 10; i++) {
+        const t = i / 9;
+        const a = dir * (t * Math.PI * 1.25);
+        const rad = 7 + t * 43;
+        g.fillCircle(Math.cos(a) * rad * dir, -52 + Math.sin(a) * rad * 0.5, 5 - t * 3);
       }
-      g.fillStyle(REF_DARK, 1);
-      g.fillRect(-3, -100, 6, 14);
-    },
+    }
+    g.fillStyle(0xfffaf0, 1);
+    g.fillCircle(0, -52, 7);
   },
-  {
-    realMetres: 2e3,
-    name: "town",
-    draw: (g) => {
-      const bar = (bx: number, w: number, h: number) => {
-        g.fillStyle(COLORS.plate, 1);
-        g.fillRect(bx, -h, w, h);
-        g.lineStyle(2, COLORS.ink, 0.3);
-        g.strokeRect(bx, -h, w, h);
-        g.fillStyle(REF_LIGHT, 1);
-        for (let r = 0; r < Math.floor(h / 20); r++) g.fillRect(bx + 5, -h + 8 + r * 20, w - 10, 7);
-      };
-      bar(-40, 22, 56);
-      bar(-14, 26, 92);
-      bar(16, 24, 44);
-    },
-  },
-  {
-    realMetres: 1.27e7,
-    name: "planet",
-    draw: (g) => {
-      g.fillStyle(REF_LIGHT, 1);
-      g.fillCircle(0, -46, 38);
+  // 12 Multiverse — several bubbles, each its own swirl
+  (g) => {
+    const bubble = (cx: number, cy: number, r: number) => {
+      g.fillStyle(REF_LIGHT, 0.45);
+      g.fillCircle(cx, cy, r);
+      g.lineStyle(2, REF_DARK, 0.5);
+      g.strokeCircle(cx, cy, r);
       g.fillStyle(REF_DARK, 1);
-      g.fillEllipse(-11, -55, 26, 15);
-      g.fillEllipse(13, -37, 21, 13);
-      g.lineStyle(4.5, REF_DARK, 0.75);
-      g.strokeEllipse(0, -40, 100, 30);
-    },
-  },
-  {
-    realMetres: 1e21,
-    name: "galaxy",
-    draw: (g) => {
-      g.fillStyle(REF_LIGHT, 0.5);
-      g.fillEllipse(0, -52, 98, 58);
-      g.fillStyle(REF_DARK, 1);
-      for (const dir of [1, -1]) {
-        for (let i = 0; i < 10; i++) {
-          const t = i / 9;
-          const a = dir * (t * Math.PI * 1.25);
-          const rad = 7 + t * 43;
-          g.fillCircle(Math.cos(a) * rad * dir, -52 + Math.sin(a) * rad * 0.5, 5 - t * 3);
-        }
+      for (let i = 0; i < 5; i++) {
+        const t = i / 4;
+        const a = t * Math.PI * 1.4;
+        g.fillCircle(cx + Math.cos(a) * r * 0.6 * t, cy + Math.sin(a) * r * 0.5 * t, r * 0.13);
       }
-      g.fillStyle(0xfffaf0, 1);
-      g.fillCircle(0, -52, 7);
-    },
+    };
+    bubble(-34, -40, 24);
+    bubble(22, -62, 30);
+    bubble(40, -22, 17);
+  },
+  // 13 Dimension — a rift
+  (g) => {
+    g.fillStyle(REF_DARK, 0.5);
+    g.fillEllipse(0, -52, 62, 96);
+    g.fillStyle(COLORS.plate, 0.85);
+    g.fillEllipse(0, -52, 38, 74);
+    g.fillStyle(REF_DARK, 1);
+    g.fillEllipse(0, -52, 15, 44);
+    g.lineStyle(2.5, COLORS.gold, 0.8);
+    g.strokeEllipse(0, -52, 62, 96);
   },
 ];
 
@@ -303,42 +399,37 @@ export class Monster {
   }
 
   /**
-   * Pick and draw the reference for a milestone, sized to the TRUE ratio
-   * between it and the monster.
+   * Draw the thing the monster is growing TOWARD, beside it, sized from the
+   * real-world ratio between them.
    *
-   * The reference is the smallest thing the monster has not yet outgrown, so it
-   * is never drawn smaller than the monster while the monster is still smaller
-   * than it — the bug this replaces, where a dog-sized monster loomed over a
-   * house. Within a band the monster visibly closes the gap; once it passes the
-   * reference, the next one up takes over and the chase restarts.
+   * The reference is indexed by milestone, so it is always exactly what the HUD
+   * announces — a City when it says GROWING TO CITY. The previous version chose
+   * from a shorter list by size, which skipped Country and Continent outright
+   * and stood a planet beside a monster only growing to a City.
    *
-   * The ratio is clamped: past the Town milestone the honest ratio runs to many
-   * thousands, and nothing legible can be drawn at that scale on a phone. The
-   * clamp keeps the RELATIONSHIP (still smaller, nearly there) readable even
-   * where the true proportion cannot be.
+   * The ratio is LOG-COMPRESSED rather than literal. Real ratios here run from
+   * about 3x (Dog to Human) to 60,000x (Building to Town) — the large ones
+   * cannot be drawn beside a 140px monster at all. Compressing log10 into a
+   * 1.25x..2.4x band keeps the ORDER honest: the monster is always smaller than
+   * what it is chasing, and a huge leap looks bigger than a small one.
    */
   private drawScaleRef(milestone: number): void {
     const g = this.scaleRef;
     if (!g) return;
     g.clear();
 
-    const mIdx = Math.max(0, Math.min(MONSTER_METRES.length - 1, milestone));
-    const monsterMetres = MONSTER_METRES[mIdx];
-    const ref =
-      SCALE_REFS.find((r) => r.realMetres >= monsterMetres) ??
-      SCALE_REFS[SCALE_REFS.length - 1];
+    const m = Math.max(0, milestone);
+    const draw = REF_DRAWS[Math.min(m, REF_DRAWS.length - 1)];
 
-    const monsterScale = Math.min(BASE_SCALE + milestone * 0.09, MAX_SCALE);
+    const monsterScale = Math.min(BASE_SCALE + m * 0.09, MAX_SCALE);
     const monsterPx = BODY_SPAN * monsterScale;
-    const trueRatio = ref.realMetres / monsterMetres;
-    const ratio = Math.max(1, Math.min(trueRatio, 2.4));
+    const trueRatio = Math.max(1, targetMetres(m) / currentMetres(m));
+    const compressed = 1.25 + 1.15 * Math.min(1, Math.log10(trueRatio) / 3);
     // Capped at 142: the gap between the bin floor (470) and the shared ground
     // line (y+58 = 618) is 148px, and a taller reference would poke into the
-    // bin. It still exceeds the monster's own max of ~137px, so the reference
-    // stays the bigger thing right to the top of the ladder.
-    const heightPx = Math.max(38, Math.min(monsterPx * ratio, 142));
+    // bin. It still exceeds the monster's own max of ~137px.
+    const heightPx = Math.max(38, Math.min(monsterPx * compressed, 142));
 
-    // Ground shared with the monster: its feet reach ~+58 body units.
     const gy = this.y + 58;
     const bx = this.x - 150;
     g.setPosition(bx, gy).setScale(heightPx / 100);
@@ -346,9 +437,9 @@ export class Monster {
     // Everything below is in normalised units (ground y=0, top y=-100).
     g.fillStyle(COLORS.ink, 0.12);
     g.fillEllipse(0, 3, 62, 13);
-    ref.draw(g);
+    draw(g);
 
-    this.scaleRefLabel?.setText(ref.name);
+    this.scaleRefLabel?.setText(milestoneName(m).toLowerCase());
   }
 
   /** The blob itself — everything that never changes with mood. */

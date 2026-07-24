@@ -16,6 +16,41 @@ class SfxService {
   private failed = false;
   /** Master switch, so a mute toggle can be added without touching call sites. */
   enabled = true;
+  private unlocked = false;
+
+  /**
+   * Create and resume the audio context from inside a real user gesture.
+   *
+   * This is the fix for "no sound until something else happens". Browsers —
+   * iOS Safari most strictly — will only start audio in a handler for a genuine
+   * tap, and a merge fires asynchronously some frames AFTER the tap that caused
+   * it, which is outside the gesture. Creating the context lazily on the first
+   * sound therefore left it stuck in "suspended" and every note was silent.
+   *
+   * Hooked to the first pointerdown (see main.ts). Also plays one silent
+   * buffer, which is what actually flips an iOS context to "running".
+   */
+  unlock(): void {
+    if (this.unlocked) return;
+    const ctx = this.context();
+    if (!ctx) return;
+    this.unlocked = true;
+    try {
+      void ctx.resume();
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch {
+      /* best effort — silence is acceptable, a crash is not */
+    }
+  }
+
+  /** Whether audio is actually running — used to verify the unlock worked. */
+  get state(): string {
+    return this.ctx ? this.ctx.state : "none";
+  }
 
   private context(): AudioContext | null {
     if (this.failed) return null;
