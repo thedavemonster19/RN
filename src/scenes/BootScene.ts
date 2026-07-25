@@ -4,6 +4,12 @@ import { paintFood } from "../data/foodArt";
 import { FOOD_SHEET, SHEET_CELL, SHEET_COLS } from "../data/foodSheet";
 import { loadUiFont } from "../data/uiFont";
 import { BODY_ART, paintMonsterBody } from "../data/monsterArt";
+import {
+  CLAW_HEAD_ART,
+  CLAW_CARRIAGE_ART,
+  paintClawHead,
+  paintClawCarriage,
+} from "../data/clawArt";
 
 /**
  * Builds one food texture per tier, then hands off to the game.
@@ -45,7 +51,26 @@ export class BootScene extends Phaser.Scene {
     const usable = sheet && sheet.width > SHEET_CELL ? sheet : null;
     TIER_RADII.forEach((r, i) => this.makeFood(`food${i + 1}`, i + 1, r, usable));
     this.makeMonsterBody();
+    this.makeClaw();
     this.scene.start("Menu");
+  }
+
+  /** The claw's two pieces, painted once at 4x for the same reason as the body. */
+  private makeClaw(): void {
+    const SCALE = 4;
+    const parts: [string, { w: number; h: number }, (c: CanvasRenderingContext2D, s: number) => void][] = [
+      ["clawHead", CLAW_HEAD_ART, paintClawHead],
+      ["clawCarriage", CLAW_CARRIAGE_ART, paintClawCarriage],
+    ];
+    for (const [key, art, paint] of parts) {
+      if (this.textures.exists(key)) this.textures.remove(key);
+      const tex = this.textures.createCanvas(key, art.w * SCALE, art.h * SCALE);
+      if (!tex) continue;
+      const ctx = tex.getContext();
+      ctx.clearRect(0, 0, art.w * SCALE, art.h * SCALE);
+      paint(ctx, SCALE);
+      tex.refresh();
+    }
   }
 
   /**

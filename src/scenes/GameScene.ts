@@ -127,17 +127,18 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   private inputReady = false;
   /**
-   * The claw needs this long to reload between drops. This is both a bug fix
-   * and a design decision. The bug: unthrottled tapping could stack a dozen
-   * falling bodies in a second, and with the solver at 24 position iterations
-   * the frame time collapses on a phone — the reported "screen freezes when
-   * dropping in quick succession". The design: measured with the input
-   * harness, 80 mindless taps scored 3,208 and built a tier-7 purely by
-   * letting auto-merges cascade — spam WAS a strategy. A reload doesn't make
-   * spam unprofitable by itself (the craving retune's overflow pressure does
-   * that), but it makes every drop a decision instead of a stream.
+   * A safety rail, NOT a game mechanic — the felt 450ms reload was removed at
+   * the user's request because it made dropping sluggish.
+   *
+   * Something has to stay, because the reported "screen freezes when dropping
+   * in quick succession" was measured to be solver collapse: unthrottled taps
+   * stacked a dozen simultaneously-falling bodies and, at 24 position
+   * iterations, frame time cratered (60fps -> 40fps on desktop; worse on a
+   * phone). 130ms caps the worst case at ~7 drops/second, which is faster
+   * than a human taps deliberately — so it never reads as a cooldown — while
+   * still preventing the pile-up. Anti-spam is the craving retune's job now.
    */
-  private static DROP_RELOAD_MS = 450;
+  private static DROP_GUARD_MS = 130;
   private nextDropAt = 0;
   private binGfx!: Phaser.GameObjects.Graphics;
   /** Redrawn every frame: the bin edge glowing as the pile nears the line. */
@@ -316,9 +317,9 @@ export class GameScene extends Phaser.Scene {
    * never a fresh drop.
    */
   private dropQueued(): void {
-    // Reloading — the tap aims but releases nothing. See DROP_RELOAD_MS.
+    // Physics guard only — see DROP_GUARD_MS.
     if (this.time.now < this.nextDropAt) return;
-    this.nextDropAt = this.time.now + GameScene.DROP_RELOAD_MS;
+    this.nextDropAt = this.time.now + GameScene.DROP_GUARD_MS;
 
     const fromPocket = this.pocketLoad !== null;
     // Under Double Drop this is two DIFFERENT foods, drawn separately, so they
@@ -347,9 +348,6 @@ export class GameScene extends Phaser.Scene {
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
     this.lastDrop = { foods, specs, fromPocket };
     this.claw.setDispenser(this.currentDrop());
-    // The next food fades in over the reload, so the pause reads as the claw
-    // fetching it rather than the game ignoring a tap.
-    this.claw.showReload(GameScene.DROP_RELOAD_MS);
     this.refreshUndo();
   }
 
