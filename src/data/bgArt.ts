@@ -210,6 +210,28 @@ function glow(ctx: Ctx, x: number, y: number, r0: number, color: string): void {
   ctx.restore();
 }
 
+/**
+ * A real little tree: trunk, a three-lobe canopy (one path, so the lobes fuse
+ * seamlessly), and a sunlit crown. Replaces the bare circles that were
+ * standing in for trees — a circle on a stick reads as a lollipop.
+ * `y` is the ground line the trunk stands on.
+ */
+function tree(ctx: Ctx, x: number, y: number, s: number): void {
+  ctx.fillStyle = WOOD_D;
+  ctx.fillRect(x - 2.2 * s, y - 11 * s, 4.4 * s, 11 * s);
+  ctx.fillStyle = LEAF_D;
+  ctx.beginPath();
+  ctx.arc(x - 7 * s, y - 14 * s, 7.5 * s, 0, TAU);
+  ctx.arc(x + 7 * s, y - 14 * s, 7.5 * s, 0, TAU);
+  ctx.arc(x, y - 21 * s, 9 * s, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = LEAF;
+  ctx.beginPath();
+  ctx.arc(x - 3 * s, y - 22 * s, 5.5 * s, 0, TAU);
+  ctx.arc(x + 4.5 * s, y - 18.5 * s, 4.5 * s, 0, TAU);
+  ctx.fill();
+}
+
 /** A simple gabled house: body, roof, door, lit window. */
 function house(
   ctx: Ctx,
@@ -449,14 +471,20 @@ function street(ctx: Ctx, sx: number, feet: number): void {
   ctx.fillStyle = "#8f8a86";
   ctx.fillRect(0, feet + 9, BG_W, BG_H - feet);
 
-  // crosswalk under the monster — a short zebra band, not full-height columns
+  // The crosswalk under the monster: broad horizontal paint bars stacked down
+  // the road, the way every game draws one. (The first version was four
+  // trapezoids fanning toward the viewer — geometrically "correct"
+  // perspective, but it read as a weird splayed object, not road paint.)
   ctx.fillStyle = "#f6f2ea";
-  for (const x of [sx - 52, sx - 18, sx + 16, sx + 50]) {
+  for (let i = 0; i < 5; i++) {
+    const w = 112 + i * 6;
+    const y = feet + 16 + i * 19;
     ctx.beginPath();
-    ctx.moveTo(x, feet + 13);
-    ctx.lineTo(x + 22, feet + 13);
-    ctx.lineTo(x + 28, feet + 66);
-    ctx.lineTo(x - 6, feet + 66);
+    ctx.moveTo(sx - w / 2 + 3, y);
+    ctx.arcTo(sx + w / 2, y, sx + w / 2, y + 11, 3);
+    ctx.arcTo(sx + w / 2, y + 11, sx - w / 2, y + 11, 3);
+    ctx.arcTo(sx - w / 2, y + 11, sx - w / 2, y, 3);
+    ctx.arcTo(sx - w / 2, y, sx + w / 2, y, 3);
     ctx.closePath();
     ctx.fill();
   }
@@ -712,19 +740,10 @@ function aboveTown(ctx: Ctx, sx: number, feet: number): void {
   ];
   spots.forEach(([tx, ty], i) => house(ctx, tx, ty + 16, 17, 16, WALL_CREAM, roofs[i % roofs.length]));
 
-  // trees between the houses
-  for (const [tx2, ty2, tw2] of [
-    [96, feet + 34, 9],
-    [186, feet + 30, 10],
-    [296, feet + 32, 9],
-  ] as [number, number, number][]) {
-    ctx.fillStyle = WOOD_D;
-    ctx.fillRect(tx2 - 1.8, ty2, 3.6, 9);
-    ctx.fillStyle = LEAF;
-    ctx.beginPath();
-    ctx.ellipse(tx2, ty2, tw2, tw2 * 1.15, 0, 0, TAU);
-    ctx.fill();
-  }
+  // real trees between the houses
+  tree(ctx, 96, feet + 46, 1.15);
+  tree(ctx, 186, feet + 42, 1.3);
+  tree(ctx, 296, feet + 44, 1.1);
 }
 
 /** m6, to City: a giant in the countryside, the city small on the horizon. */
@@ -734,15 +753,17 @@ function patchwork(ctx: Ctx, sx: number, feet: number): void {
   cloud(ctx, 300, 200, 0.85, CLOUD_W, 0.75);
 
   const horizon = feet - 34;
-  // the destination: a tiny city skyline on the horizon
+  // The destination: a tiny city skyline on the horizon. Placed in the gap
+  // between the monster (left) and the river (right) — at the left edge it
+  // sat exactly behind the monster's body and was invisible.
   ctx.fillStyle = "#8fa4c4";
   for (const [x, w, h] of [
-    [40, 11, 24],
-    [55, 14, 38],
-    [73, 10, 28],
-    [87, 13, 46],
-    [104, 11, 22],
-    [119, 9, 16],
+    [196, 11, 24],
+    [211, 14, 38],
+    [229, 10, 28],
+    [243, 13, 46],
+    [260, 11, 22],
+    [275, 9, 16],
   ] as [number, number, number][]) {
     ctx.fillRect(x, horizon - h, w, h);
   }
@@ -800,43 +821,94 @@ function patchwork(ctx: Ctx, sx: number, feet: number): void {
     ctx.fill();
   }
 
-  // a lane, the river with banks and a bridge, farmhouses
+  // a lane winding toward the knoll
   ctx.strokeStyle = "#e8d9ae";
   ctx.lineWidth = 6;
+  ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(96, horizon + 4);
-  ctx.bezierCurveTo(150, horizon + 30, 60, feet + 10, sx - 40, feet + 24);
+  ctx.bezierCurveTo(150, horizon + 30, 60, feet + 10, sx - 44, feet + 30);
   ctx.stroke();
-  const riverPath = () => {
+
+  // The river: a FILLED shape that tapers toward the horizon, springing from
+  // inside the land — the stroked version had constant width right up to its
+  // start, which read as water pouring off the edge of the world. Sand banks
+  // first, then the water inside them, then a glint down the middle.
+  const riverEdges = (grow: number) => {
     ctx.beginPath();
-    ctx.moveTo(330, horizon);
-    ctx.bezierCurveTo(292, horizon + 50, 352, horizon + 96, 302, BG_H + 8);
+    ctx.moveTo(324 - grow / 2, horizon + 10);
+    ctx.bezierCurveTo(
+      288 - grow,
+      horizon + 52,
+      344 + grow,
+      horizon + 96,
+      292 - grow,
+      BG_H + 8
+    );
+    ctx.lineTo(320 + grow, BG_H + 8);
+    ctx.bezierCurveTo(
+      360 + grow,
+      horizon + 92,
+      300 - grow / 2,
+      horizon + 50,
+      330 + grow / 2,
+      horizon + 10
+    );
+    ctx.closePath();
   };
-  ctx.strokeStyle = "#c8b98a";
-  ctx.lineWidth = 19;
-  riverPath();
-  ctx.stroke();
-  ctx.strokeStyle = WATER;
-  ctx.lineWidth = 14;
-  riverPath();
-  ctx.stroke();
+  ctx.fillStyle = "#d9c98f";
+  riverEdges(5);
+  ctx.fill();
+  ctx.fillStyle = WATER;
+  riverEdges(0);
+  ctx.fill();
   ctx.strokeStyle = "#9fdcf2";
-  ctx.lineWidth = 4;
-  riverPath();
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(327, horizon + 16);
+  ctx.bezierCurveTo(300, horizon + 52, 346, horizon + 92, 304, BG_H);
   ctx.stroke();
+  // the bridge, carrying the hedgerow lane over the water
   ctx.fillStyle = WOOD;
-  ctx.fillRect(296, horizon + 58, 40, 9);
-  ctx.fillRect(294, horizon + 55, 5, 15);
+  ctx.fillRect(292, horizon + 58, 46, 9);
+  ctx.fillRect(290, horizon + 55, 5, 15);
   ctx.fillRect(333, horizon + 55, 5, 15);
+
   house(ctx, 176, horizon + 46, 20, 12, WALL_CREAM, ROOF_CORAL);
   house(ctx, 64, feet + 18, 24, 14, WALL_CREAM, ROOF_TEAL);
   house(ctx, 252, feet + 46, 26, 16, WALL_CREAM, ROOF_GOLD);
+  tree(ctx, 106, feet + 26, 0.85);
+  tree(ctx, 240, feet + 60, 0.95);
 
-  // the meadow the giant stands in
+  // ONE clear perch: a grassy knoll swelling out of the fields, its crest
+  // exactly under the monster's feet. (Before this there was a pale ellipse
+  // reading as one of several vague "podiums" — field patches did the rest.)
+  ctx.fillStyle = GRASS_D;
+  ctx.beginPath();
+  ctx.ellipse(sx, feet + 15, 66, 15, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = GRASS;
+  ctx.beginPath();
+  ctx.moveTo(sx - 62, feet + 15);
+  ctx.quadraticCurveTo(sx, feet - 27, sx + 62, feet + 15);
+  ctx.quadraticCurveTo(sx, feet + 27, sx - 62, feet + 15);
+  ctx.closePath();
+  ctx.fill();
   ctx.fillStyle = GRASS_L;
   ctx.beginPath();
-  ctx.ellipse(sx, feet + 10, 62, 17, 0, 0, TAU);
+  ctx.ellipse(sx, feet + 2, 30, 7, 0, 0, TAU);
   ctx.fill();
+  // daisies on the slope so the knoll reads as a place, not a shape
+  ctx.fillStyle = "#ffffff";
+  for (const [dx2, dy2] of [
+    [sx - 34, feet + 8],
+    [sx + 28, feet + 11],
+    [sx + 44, feet + 4],
+  ] as [number, number][]) {
+    ctx.beginPath();
+    ctx.arc(dx2, dy2, 2.4, 0, TAU);
+    ctx.fill();
+  }
 }
 
 /** m7, to Country: standing on the curve of the world, haze below. */
