@@ -18,14 +18,15 @@ import {
   BG_LAST,
 } from "../data/bgArt";
 import { FoodPile, Food } from "../objects/FoodPile";
-import { FoodType, foodColor, tierRadius, tierTexture } from "../data/foods";
+import { FoodType, TYPES, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
 import { Monster } from "../objects/Monster";
 import { Hud } from "../objects/Hud";
 import { GameState, GameOverReason, FeedResult, Spec } from "../systems/GameState";
 import { Save } from "../systems/Save";
 import { Sfx } from "../systems/Sfx";
-import { Ev, ReplayEvent } from "../systems/Replay";
+import { Ev, ReplayEvent, restoreRun, REPLAY_VERSION } from "../systems/Replay";
+import { RunSave } from "../systems/RunSave";
 import { MODS } from "../systems/Modifiers";
 import { ModeId } from "../systems/Modes";
 import { makeButton } from "../objects/Button";
@@ -176,9 +177,19 @@ export class GameScene extends Phaser.Scene {
   /** The permanent mode picked on the mode-select screen. */
   private mode: ModeId = "classic";
 
-  init(data: { dailyKey?: string; mode?: ModeId }): void {
+  /** Set when this create() should restore the stored run instead of rolling
+   *  a fresh one. */
+  private resumeStored = false;
+  /** Pile snapshot from the stored run, spawned once the pile exists. */
+  private restoredPile: [number, number, number][] | null = null;
+  /** True once anything changed since the last localStorage checkpoint. */
+  private saveDirty = false;
+  private lastSaveAt = 0;
+
+  init(data: { dailyKey?: string; mode?: ModeId; resume?: boolean }): void {
     this.dailyKey = data?.dailyKey ?? null;
     this.mode = data?.mode ?? "classic";
+    this.resumeStored = data?.resume ?? false;
   }
 
   create(): void {
@@ -197,7 +208,30 @@ export class GameScene extends Phaser.Scene {
     this.inputReady = false;
     this.time.delayedCall(150, () => (this.inputReady = true));
 
-    this.state = new GameState(this.dailyKey, undefined, this.mode);
+    // A resumed run rebuilds its economy by replaying the stored log — the
+    // same loop the server verifies with — so the RNG sits exactly where it
+    // was. A fresh run rolls a new one AND clears any stored run: every path
+    // into a fresh game (menu, mode select, play-again) is an abandonment.
+    this.restoredPile = null;
+    this.saveDirty = false;
+    if (this.resumeStored) {
+      const stored = RunSave.load();
+      const state = stored ? restoreRun(stored, stored.events) : null;
+      if (stored && state) {
+        this.dailyKey = stored.dailyKey;
+        this.mode = stored.mode;
+        this.state = state;
+        this.replayLog = stored.events.slice();
+        this.restoredPile = stored.pile;
+      } else {
+        RunSave.clear(); // unreadable or from an old economy — start fresh
+        this.resumeStored = false;
+      }
+    }
+    if (!this.resumeStored) {
+      RunSave.clear();
+      this.state = new GameState(this.dailyKey, undefined, this.mode);
+    }
 
     // Physics-only modifiers land on the world before anything spawns.
     const gravity = this.matter.world.localWorld.gravity;
@@ -242,6 +276,19 @@ export class GameScene extends Phaser.Scene {
     const spot = bgSpot(this.state.milestone);
     this.monster = new Monster(this, spot.x, spot.y);
     this.monster.setName(Save.name);
+    if (this.state.milestone > 0) this.monster.setMilestone(this.state.milestone);
+    // A resumed run gets its pile back where it stood. The snapshot is only
+    // visual — what exists economically was decided by the replayed log — so
+    // positions are clamped into the bin and left to settle.
+    if (this.restoredPile) {
+      for (const [fx, fy, tier] of this.restoredPile) {
+        const r = tierRadius(tier);
+        const x = Phaser.Math.Clamp(fx, BIN.left + r, BIN.right - r);
+        const y = Phaser.Math.Clamp(fy, BIN.railY + r, BIN.floor - r);
+        this.pile.spawn(x, y, TYPES[0], tier);
+      }
+      this.restoredPile = null;
+    }
     this.hud = new Hud(this, this.state);
 
     // Merging is where the skill shows: a well-aimed drop can set off a chain.
@@ -345,6 +392,7 @@ export class GameScene extends Phaser.Scene {
       if (!fromPocket) this.state.addDropScore(spec.tier);
     });
 
+    this.saveDirty = true;
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
     this.lastDrop = { foods, specs, fromPocket };
     this.claw.setDispenser(this.currentDrop());
@@ -372,6 +420,7 @@ export class GameScene extends Phaser.Scene {
       this.floatText(GAME.WIDTH / 2, BIN.floor - 30, "too late to undo", "#9b7a5f");
       return;
     }
+    this.saveDirty = true;
     this.replayLog.push([Ev.Undo, 0]);
     last.foods.forEach((f) => this.pile.remove(f));
     if (last.fromPocket) {
@@ -449,6 +498,7 @@ export class GameScene extends Phaser.Scene {
       this.floatText(food.mo.x, food.mo.y - 20, msg, "#9b7a5f");
       return;
     }
+    this.saveDirty = true;
     this.replayLog.push([Ev.Stash, food.tier]);
     this.animateToPocket(this.pluck(food));
   }
@@ -486,7 +536,8 @@ export class GameScene extends Phaser.Scene {
         // Only log a feed the state actually accepted, so the log can never
         // describe something that didn't happen.
         if (result) {
-          this.replayLog.push([Ev.Feed, tier]);
+          this.saveDirty = true;
+    this.replayLog.push([Ev.Feed, tier]);
           this.applyFeed(result, type);
           // Feeding the last food empties the bin. Checked right here, at the
           // same moment the replay checks it, so the two agree.
@@ -566,6 +617,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleMerge(x: number, y: number, type: FoodType, tier: number): void {
     // `tier` is the tier produced; the log records the tier consumed.
+    this.saveDirty = true;
     this.replayLog.push([Ev.Merge, tier - 1]);
     this.state.addMergeScore(tier);
     this.state.noteTier(tier);
@@ -655,6 +707,7 @@ export class GameScene extends Phaser.Scene {
     if (this.over) return;
     this.pile.update();
     this.applyModifiers(time, delta);
+    this.checkpoint(time);
 
     // Overflow: the moment settled food crosses the line, start a grace
     // countdown. Clear the pile back under the line to cancel it.
@@ -1127,10 +1180,35 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(700, () => emitter.destroy());
   }
 
+  /**
+   * Persist the run to localStorage, debounced to one write a second — the
+   * log grows to thousands of events on a long run, and serialising it every
+   * merge of a cascade would be real work on a phone. Written only after
+   * something actually changed, so an idle screen writes nothing.
+   */
+  private checkpoint(time: number): void {
+    if (!this.saveDirty || time - this.lastSaveAt < 1000) return;
+    this.saveDirty = false;
+    this.lastSaveAt = time;
+    RunSave.save({
+      v: REPLAY_VERSION,
+      seed: this.state.seed,
+      dailyKey: this.state.dailyKey,
+      mode: this.state.mode,
+      events: this.replayLog,
+      pile: this.pile.items
+        .filter((f) => !f.merging)
+        .map((f) => [Math.round(f.mo.x), Math.round(f.mo.y), f.tier]),
+      savedAt: Date.now(),
+    });
+  }
+
   private gameOver(reason: GameOverReason): void {
     if (this.over) return;
     this.over = true;
     GameScene.hasActiveRun = false;
+    // The run is over — there is nothing left to come back to.
+    RunSave.clear();
     this.scene.launch("GameOver", {
       score: this.state.score,
       milestone: this.state.milestone,
@@ -1147,6 +1225,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
+    // Phaser REUSES scene instances on restart, so these fields still hold
+    // the PREVIOUS run's images — destroyed with the old display list, their
+    // frames null. Reusing them was both restart bugs at once: swapLayer saw
+    // "the layer already shows this key" and kept the corpse (no background
+    // after Play again), or called setTexture on it and threw, killing
+    // create() halfway (the New-game freeze).
+    this.bgImage = undefined;
+    this.bgFront = undefined;
     // Leftover stages from a previous run (a restart arrives here with the old
     // run's last background still baked) — drop them before baking fresh.
     for (let i = 0; i <= BG_LAST; i++) {
@@ -1197,6 +1283,8 @@ export class GameScene extends Phaser.Scene {
     depth: number,
     fade: boolean
   ): Phaser.GameObjects.Image | undefined {
+    // A destroyed image (its scene is unset on destroy) must never be reused.
+    if (current && !current.scene) current = undefined;
     if (!key) {
       // this stage has no such layer — fade the old one away if present
       if (current) {

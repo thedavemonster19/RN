@@ -106,7 +106,12 @@ try {
     await sleep(1400);
   }
   if (evalJs) {
-    const r = await send("Runtime.evaluate", { expression: evalJs, returnByValue: true });
+    // awaitPromise lets probes be async IIFEs that settle when their work does
+    const r = await send("Runtime.evaluate", {
+      expression: evalJs,
+      returnByValue: true,
+      awaitPromise: true,
+    });
     if (r.exceptionDetails) console.log("EVAL ERROR:", r.exceptionDetails.text);
     else console.log("eval:", JSON.stringify(r.result?.value));
     await sleep(1200);

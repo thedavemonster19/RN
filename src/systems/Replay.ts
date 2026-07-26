@@ -83,18 +83,52 @@ export function verifyRun(
   events: ReplayEvent[],
   claimedScore: number
 ): VerifyResult {
-  const fail = (reason: string, s: GameState): VerifyResult => ({
-    ok: false,
-    score: s.score,
-    feeds: s.totalFeeds,
-    drops: s.totalDrops,
-    biggestTier: s.biggestTier,
-    reason,
-  });
-
   const state = new GameState(source.dailyKey ?? null, source.seed, source.mode ?? "classic");
-  if (!Array.isArray(events)) return fail("no event log", state);
-  if (events.length > MAX_EVENTS) return fail("event log too long", state);
+  const r = applyEvents(state, events);
+  if (!r.ok) {
+    return {
+      ok: false,
+      score: state.score,
+      feeds: state.totalFeeds,
+      drops: state.totalDrops,
+      biggestTier: state.biggestTier,
+      reason: r.reason,
+    };
+  }
+  const out: VerifyResult = {
+    ok: state.score === claimedScore,
+    score: state.score,
+    feeds: state.totalFeeds,
+    drops: state.totalDrops,
+    biggestTier: state.biggestTier,
+  };
+  if (!out.ok) out.reason = `score mismatch: replay says ${state.score}, run claimed ${claimedScore}`;
+  return out;
+}
+
+/**
+ * Rebuild a GameState by replaying a saved log — how a reloaded page resumes
+ * a run. The exact same event loop the server verifies with, so a resumed
+ * run's economy (RNG position included) is indistinguishable from one that
+ * never left, and the grown log still verifies at submission. Returns null
+ * if the log doesn't hold up, in which case the save is unusable.
+ */
+export function restoreRun(
+  source: { dailyKey?: string | null; seed?: number; mode?: ModeId },
+  events: ReplayEvent[]
+): GameState | null {
+  const state = new GameState(source.dailyKey ?? null, source.seed, source.mode ?? "classic");
+  return applyEvents(state, events).ok ? state : null;
+}
+
+/** Run the event loop against a fresh state. Shared by verify and restore. */
+function applyEvents(
+  state: GameState,
+  events: ReplayEvent[]
+): { ok: boolean; reason?: string } {
+  const fail = (reason: string) => ({ ok: false, reason });
+  if (!Array.isArray(events)) return fail("no event log");
+  if (events.length > MAX_EVENTS) return fail("event log too long");
 
   /** How many foods of each tier are in the bin, plus a running total so we
    *  can spot the bin being emptied. */
@@ -118,7 +152,7 @@ export function verifyRun(
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
-    if (!Array.isArray(ev) || ev.length < 2) return fail(`event ${i} malformed`, state);
+    if (!Array.isArray(ev) || ev.length < 2) return fail(`event ${i} malformed`);
     const [kind, arg] = ev;
 
     switch (kind) {
@@ -127,7 +161,7 @@ export function verifyRun(
         // isn't doubled — that would duplicate a stashed food for free.
         if (arg === 1) {
           const p = state.takePocket();
-          if (!p) return fail(`event ${i}: unstash with empty pocket`, state);
+          if (!p) return fail(`event ${i}: unstash with empty pocket`);
           give(p.tier, 1);
           state.noteTier(p.tier);
           lastDrop = { specs: [p], fromPocket: true };
@@ -145,9 +179,9 @@ export function verifyRun(
       }
 
       case Ev.Merge: {
-        if (arg < 1 || arg >= MAX_TIER) return fail(`event ${i}: bad merge tier`, state);
+        if (arg < 1 || arg >= MAX_TIER) return fail(`event ${i}: bad merge tier`);
         // Two of a tier become one of the next — the only way food grows.
-        if (!take(arg, 2)) return fail(`event ${i}: merged ${arg}s you didn't have`, state);
+        if (!take(arg, 2)) return fail(`event ${i}: merged ${arg}s you didn't have`);
         give(arg + 1, 1);
         state.addMergeScore(arg + 1);
         state.noteTier(arg + 1);
@@ -156,9 +190,9 @@ export function verifyRun(
       }
 
       case Ev.Feed: {
-        if (!take(arg, 1)) return fail(`event ${i}: fed a ${arg} you didn't have`, state);
+        if (!take(arg, 1)) return fail(`event ${i}: fed a ${arg} you didn't have`);
         const result = state.feed(state.craving.type, arg);
-        if (!result) return fail(`event ${i}: fed ${arg}, craving was ${state.craving.tier}`, state);
+        if (!result) return fail(`event ${i}: fed ${arg}, craving was ${state.craving.tier}`);
         // Feeding the last food clears the bin. Derived from the replay's own
         // bookkeeping rather than trusted from an event, so it can't be forged.
         if (binTotal === 0) state.awardBinClear();
@@ -167,20 +201,20 @@ export function verifyRun(
       }
 
       case Ev.Stash: {
-        if (!take(arg, 1)) return fail(`event ${i}: stashed a ${arg} you didn't have`, state);
+        if (!take(arg, 1)) return fail(`event ${i}: stashed a ${arg} you didn't have`);
         if (!state.stash({ type: state.craving.type, tier: arg })) {
           give(arg, 1);
-          return fail(`event ${i}: stash not affordable`, state);
+          return fail(`event ${i}: stash not affordable`);
         }
         lastDrop = null;
         break;
       }
 
       case Ev.Undo: {
-        if (state.undosLeft <= 0) return fail(`event ${i}: out of undos`, state);
-        if (!lastDrop) return fail(`event ${i}: nothing to undo`, state);
+        if (state.undosLeft <= 0) return fail(`event ${i}: out of undos`);
+        if (!lastDrop) return fail(`event ${i}: nothing to undo`);
         for (const s of lastDrop.specs) {
-          if (!take(s.tier, 1)) return fail(`event ${i}: undo target missing`, state);
+          if (!take(s.tier, 1)) return fail(`event ${i}: undo target missing`);
         }
         if (lastDrop.fromPocket) {
           state.pocket = lastDrop.specs[0];
@@ -195,17 +229,9 @@ export function verifyRun(
       }
 
       default:
-        return fail(`event ${i}: unknown kind ${kind}`, state);
+        return fail(`event ${i}: unknown kind ${kind}`);
     }
   }
 
-  const out: VerifyResult = {
-    ok: state.score === claimedScore,
-    score: state.score,
-    feeds: state.totalFeeds,
-    drops: state.totalDrops,
-    biggestTier: state.biggestTier,
-  };
-  if (!out.ok) out.reason = `score mismatch: replay says ${state.score}, run claimed ${claimedScore}`;
-  return out;
+  return { ok: true };
 }

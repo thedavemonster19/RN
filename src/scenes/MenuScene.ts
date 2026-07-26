@@ -7,6 +7,7 @@ import { Save } from "../systems/Save";
 import { todayKey } from "../systems/Rng";
 import { dailyModifiers, MODS } from "../systems/Modifiers";
 import { GameScene } from "./GameScene";
+import { RunSave } from "../systems/RunSave";
 
 const FONT = UI_FONT;
 
@@ -109,39 +110,60 @@ export class MenuScene extends Phaser.Scene {
     const gap = MenuScene.BUTTON_GAP;
     this.buttons.forEach((b) => b.destroy());
 
-    // If a run is paused in the background, the top button resumes it rather
-    // than throwing it away.
-    const resuming = GameScene.hasActiveRun;
+    // A run can be waiting in two places: paused in the background (same
+    // session), or persisted to localStorage by a reload/closed tab. Either
+    // way the top button resumes it rather than throwing it away — and when
+    // it does, "New game" stays available right below, because a player who
+    // wants OUT of a doomed run shouldn't have to go die in it first.
+    const paused = GameScene.hasActiveRun;
+    const stored = !paused && RunSave.exists();
+    const resuming = paused || stored;
+    const rowGap = resuming ? 52 : gap; // six rows must still clear the footer
     const rows: Parameters<typeof makeButton>[1][] = [
       {
         x: WIDTH / 2,
         y: top,
         label: resuming ? "Continue" : "New game",
         primary: true,
-        onClick: () => (resuming ? this.resumeGame() : this.startGame(null)),
+        onClick: () =>
+          paused
+            ? this.resumeGame()
+            : stored
+              ? this.scene.start("Game", { resume: true })
+              : this.startGame(null),
       },
+      ...(resuming
+        ? [
+            {
+              x: WIDTH / 2,
+              y: top + rowGap,
+              label: "New game",
+              onClick: () => this.startGame(null),
+            },
+          ]
+        : []),
       {
         x: WIDTH / 2,
-        y: top + gap,
+        y: top + rowGap * (resuming ? 2 : 1),
         label: "Daily challenge",
         onClick: () => this.startGame(todayKey()),
       },
       // (a caption naming today's modifiers is drawn under this button below)
       {
         x: WIDTH / 2,
-        y: top + gap * 2,
+        y: top + rowGap * (resuming ? 3 : 2),
         label: "Leaderboard",
         onClick: () => this.scene.start("Leaderboard"),
       },
       {
         x: WIDTH / 2,
-        y: top + gap * 3,
+        y: top + rowGap * (resuming ? 4 : 3),
         label: "Profile",
         onClick: () => this.scene.start("Profile"),
       },
       {
         x: WIDTH / 2,
-        y: top + gap * 4,
+        y: top + rowGap * (resuming ? 5 : 4),
         label: "Customize",
         onClick: () => this.scene.start("Customize"),
       },
