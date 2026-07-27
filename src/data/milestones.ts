@@ -74,7 +74,13 @@ export function targetMetres(milestone: number): number {
 }
 
 export function milestoneName(i: number): string {
-  return i < MILESTONES.length ? MILESTONES[i] : `Titan Lv ${i + 1}`;
+  // Past the named ladder the names are generated — and the count restarts
+  // at 1, so the first step beyond Dimension is "Titan Lv 1", not a "Titan
+  // Lv 15" that leaks the internal milestone index. Becoming a Titan reads
+  // as ascending to a new ladder, which is exactly what it is.
+  return i < MILESTONES.length
+    ? MILESTONES[i]
+    : `Titan Lv ${i - MILESTONES.length + 1}`;
 }
 
 /** The monster's current size in metric — the tier it has actually reached. */
