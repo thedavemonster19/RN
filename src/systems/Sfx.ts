@@ -152,6 +152,27 @@ class SfxService {
   refuse(): void {
     this.tone({ freq: 220, slideTo: 165, dur: 0.16, type: "sawtooth", gain: 0.05 });
   }
+
+  /** A food leaving the claw — the quietest sound here, a soft thup that
+   *  gives each drop a little physical weight. */
+  drop(): void {
+    this.tone({ freq: 340, slideTo: 220, dur: 0.07, type: "sine", gain: 0.05 });
+  }
+
+  /** Food tucked into (or pulled from) the pocket — a quick upward flick. */
+  stash(): void {
+    this.tone({ freq: 660, slideTo: 990, dur: 0.09, type: "sine", gain: 0.06 });
+  }
+
+  /**
+   * The run ended. A slow falling third, deliberately gentle — this is a calm
+   * game and the player just lost; the sound should sigh, not buzz.
+   */
+  gameOver(): void {
+    this.tone({ freq: 392, slideTo: 370, dur: 0.34, type: "triangle", gain: 0.08 });
+    this.tone({ freq: 311, slideTo: 294, dur: 0.42, type: "triangle", gain: 0.07, delay: 0.2 });
+    this.tone({ freq: 233, slideTo: 220, dur: 0.6, type: "sine", gain: 0.06, delay: 0.42 });
+  }
 }
 
 export const Sfx = new SfxService();

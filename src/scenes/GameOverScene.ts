@@ -45,9 +45,14 @@ export class GameOverScene extends Phaser.Scene {
     // The dimming overlay goes down FIRST so everything after it draws on top.
     // It used to be added late, which silently hid the sync status behind it —
     // a daily run that never posted looked like it had just done nothing.
-    this.add
+    const scrim = this.add
       .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, COLORS.scrim, 0.94)
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setAlpha(0);
+    this.tweens.add({ targets: scrim, alpha: 1, duration: 320, ease: "Quad.easeOut" });
+    // The whole summary breathes in rather than snapping on — it follows the
+    // game-over beat the GameScene just played.
+    this.cameras.main.fadeIn(300, 255, 240, 204);
 
     // A daily run that never reaches the leaderboard is the single most
     // confusing outcome here, so the result is always reported rather than

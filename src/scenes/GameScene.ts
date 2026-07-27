@@ -17,6 +17,7 @@ import {
   BG_H,
   BG_LAST,
 } from "../data/bgArt";
+import { REF_ART, paintRef } from "../data/refArt";
 import { FoodPile, Food } from "../objects/FoodPile";
 import { FoodType, TYPES, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
@@ -396,6 +397,7 @@ export class GameScene extends Phaser.Scene {
     this.replayLog.push([Ev.Drop, fromPocket ? 1 : 0]);
     this.lastDrop = { foods, specs, fromPocket };
     this.claw.setDispenser(this.currentDrop());
+    Sfx.drop();
     this.refreshUndo();
   }
 
@@ -500,6 +502,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.saveDirty = true;
     this.replayLog.push([Ev.Stash, food.tier]);
+    Sfx.stash();
     this.animateToPocket(this.pluck(food));
   }
 
@@ -1077,24 +1080,77 @@ export class GameScene extends Phaser.Scene {
     // read off a label.
     this.shockwave(this.monster.mouthX, this.monster.mouthY, 70, COLORS.gold);
     this.sparkle(this.monster.mouthX, this.monster.mouthY, 14);
-    const label = this.add
-      .text(
-        GAME.WIDTH / 2,
-        260,
-        `As big as a ${milestoneName(this.state.milestone - 1)}!`,
-        { fontFamily: FONT,
-        resolution: TEXT_RES, fontSize: "22px", fontStyle: "500", color: "#d98324" }
-      )
-      .setOrigin(0.5)
-      .setDepth(30);
+    this.showMilestoneCard(this.state.milestone - 1);
+  }
+
+  /**
+   * The level-up card: the illustration of the thing the monster just grew
+   * past, over its name. The paintings are the fourteen scale references
+   * from data/refArt — retired from standing next to the monster, perfect
+   * as a celebration. Baked lazily at card size and dropped when the card
+   * leaves; a card is on screen for ~2s per milestone, so nothing lingers.
+   */
+  private showMilestoneCard(refIndex: number): void {
+    const i = Math.max(0, Math.min(REF_ART.length - 1, refIndex));
+    const key = `refCard${i}`;
+    if (!this.textures.exists(key)) {
+      const S = 256;
+      const tex = this.textures.createCanvas(key, S, S);
+      if (!tex) return;
+      paintRef(tex.getContext(), i, S);
+      tex.refresh();
+    }
+
+    const cx = GAME.WIDTH / 2;
+    const cy = 300;
+    const panel = this.add.graphics();
+    panel.fillStyle(COLORS.cardFill, 0.97);
+    panel.fillRoundedRect(-112, -104, 224, 208, 20);
+    panel.lineStyle(2.5, COLORS.ink, 0.4);
+    panel.strokeRoundedRect(-112, -104, 224, 208, 20);
+    const art = this.add.image(0, -30, key).setDisplaySize(120, 120);
+    const eyebrow = this.add
+      .text(0, 48, "As big as a", {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "13px",
+        color: "#9b7a5f",
+      })
+      .setOrigin(0.5);
+    const title = this.add
+      .text(0, 74, `${milestoneName(i).toUpperCase()}!`, {
+        fontFamily: FONT,
+        resolution: TEXT_RES,
+        fontSize: "24px",
+        fontStyle: "700",
+        color: "#d98324",
+      })
+      .setOrigin(0.5);
+    const card = this.add
+      .container(cx, cy, [panel, art, eyebrow, title])
+      .setDepth(40)
+      .setScale(0.5)
+      .setAlpha(0);
+
     this.tweens.add({
-      targets: label,
-      y: 220,
-      alpha: 0,
-      scale: 1.2,
-      duration: 1200,
-      ease: "Cubic.easeOut",
-      onComplete: () => label.destroy(),
+      targets: card,
+      scale: 1,
+      alpha: 1,
+      duration: 380,
+      ease: "Back.easeOut",
+    });
+    this.time.delayedCall(1750, () => {
+      this.tweens.add({
+        targets: card,
+        alpha: 0,
+        y: cy - 24,
+        duration: 340,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          card.destroy();
+          if (this.textures.exists(key)) this.textures.remove(key);
+        },
+      });
     });
   }
 
@@ -1209,6 +1265,16 @@ export class GameScene extends Phaser.Scene {
     GameScene.hasActiveRun = false;
     // The run is over — there is nothing left to come back to.
     RunSave.clear();
+    // A short beat before the panel: the monster reacts, the sound sighs,
+    // and THEN the summary arrives. Cutting straight to the overlay made
+    // the ending feel like a crash rather than a moment.
+    Sfx.gameOver();
+    this.monster.refuse();
+    this.cameras.main.shake(260, 0.004);
+    this.time.delayedCall(750, () => this.launchGameOver(reason));
+  }
+
+  private launchGameOver(reason: GameOverReason): void {
     this.scene.launch("GameOver", {
       score: this.state.score,
       milestone: this.state.milestone,
