@@ -17,7 +17,6 @@ import {
   BG_H,
   BG_LAST,
 } from "../data/bgArt";
-import { REF_ART, paintRef } from "../data/refArt";
 import { FoodPile, Food } from "../objects/FoodPile";
 import { FoodType, TYPES, foodColor, tierRadius, tierTexture } from "../data/foods";
 import { Claw } from "../objects/Claw";
@@ -1077,80 +1076,37 @@ export class GameScene extends Phaser.Scene {
   private celebrate(): void {
     this.cameras.main.shake(220, 0.008);
     // A ring off the monster plus sparkles, so a level-up is felt and not just
-    // read off a label.
+    // read off a label. The announcement itself stays SMALL — a big card in
+    // the middle of the screen was tried and covered the bin mid-play; the
+    // background crossfade is the real celebration, this is just the caption.
     this.shockwave(this.monster.mouthX, this.monster.mouthY, 70, COLORS.gold);
     this.sparkle(this.monster.mouthX, this.monster.mouthY, 14);
-    this.showMilestoneCard(this.state.milestone - 1);
-  }
-
-  /**
-   * The level-up card: the illustration of the thing the monster just grew
-   * past, over its name. The paintings are the fourteen scale references
-   * from data/refArt — retired from standing next to the monster, perfect
-   * as a celebration. Baked lazily at card size and dropped when the card
-   * leaves; a card is on screen for ~2s per milestone, so nothing lingers.
-   */
-  private showMilestoneCard(refIndex: number): void {
-    const i = Math.max(0, Math.min(REF_ART.length - 1, refIndex));
-    const key = `refCard${i}`;
-    if (!this.textures.exists(key)) {
-      const S = 256;
-      const tex = this.textures.createCanvas(key, S, S);
-      if (!tex) return;
-      paintRef(tex.getContext(), i, S);
-      tex.refresh();
-    }
-
-    const cx = GAME.WIDTH / 2;
-    const cy = 300;
-    const panel = this.add.graphics();
-    panel.fillStyle(COLORS.cardFill, 0.97);
-    panel.fillRoundedRect(-112, -104, 224, 208, 20);
-    panel.lineStyle(2.5, COLORS.ink, 0.4);
-    panel.strokeRoundedRect(-112, -104, 224, 208, 20);
-    const art = this.add.image(0, -30, key).setDisplaySize(120, 120);
-    const eyebrow = this.add
-      .text(0, 48, "As big as a", {
+    const label = this.add
+      .text(GAME.WIDTH / 2, 260, `As big as a ${milestoneName(this.state.milestone - 1)}!`, {
         fontFamily: FONT,
         resolution: TEXT_RES,
-        fontSize: "13px",
-        color: "#9b7a5f",
-      })
-      .setOrigin(0.5);
-    const title = this.add
-      .text(0, 74, `${milestoneName(i).toUpperCase()}!`, {
-        fontFamily: FONT,
-        resolution: TEXT_RES,
-        fontSize: "24px",
-        fontStyle: "700",
+        fontSize: "22px",
+        fontStyle: "600",
         color: "#d98324",
       })
-      .setOrigin(0.5);
-    const card = this.add
-      .container(cx, cy, [panel, art, eyebrow, title])
-      .setDepth(40)
-      .setScale(0.5)
-      .setAlpha(0);
-
+      .setOrigin(0.5)
+      .setDepth(30);
+    // Drift the whole time, but HOLD at full opacity before fading — fading
+    // from the first frame left the words ghostly before anyone read them.
     this.tweens.add({
-      targets: card,
-      scale: 1,
-      alpha: 1,
-      duration: 380,
-      ease: "Back.easeOut",
+      targets: label,
+      y: 220,
+      scale: 1.15,
+      duration: 1500,
+      ease: "Cubic.easeOut",
     });
-    this.time.delayedCall(1750, () => {
-      this.tweens.add({
-        targets: card,
-        alpha: 0,
-        y: cy - 24,
-        duration: 340,
-        ease: "Quad.easeIn",
-        onComplete: () => {
-          card.destroy();
-          if (this.textures.exists(key)) this.textures.remove(key);
-        },
-      });
+    this.tweens.add({
+      targets: label,
+      alpha: 0,
+      delay: 800,
+      duration: 700,
+      ease: "Quad.easeIn",
+      onComplete: () => label.destroy(),
     });
   }
 
