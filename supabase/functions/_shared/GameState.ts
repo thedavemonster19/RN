@@ -17,7 +17,7 @@ import { ModeId, modeMods } from "./Modes.ts";
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 // Overflow is the only way to lose — the game is infinite and skill-based.
-export type GameOverReason = "overflow";
+export type GameOverReason = "overflow" | "quit";
 
 /** A food, as a plain value: what the queue holds and what the monster wants. */
 export interface Spec {

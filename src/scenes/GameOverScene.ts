@@ -111,12 +111,17 @@ export class GameOverScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(WIDTH / 2, top + 30, "The bin overflowed.", {
-        fontFamily: FONT,
-        resolution: TEXT_RES,
-        fontSize: "13px",
-        color: "#6d5443",
-      })
+      .text(
+        WIDTH / 2,
+        top + 30,
+        data.reason === "quit" ? "Run ended — score banked." : "The bin overflowed.",
+        {
+          fontFamily: FONT,
+          resolution: TEXT_RES,
+          fontSize: "13px",
+          color: "#6d5443",
+        }
+      )
       .setOrigin(0.5);
 
     this.add

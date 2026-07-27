@@ -979,7 +979,7 @@ export class GameScene extends Phaser.Scene {
           close();
           // Ending deliberately still counts as a finished run, so the score
           // is recorded rather than silently thrown away.
-          this.gameOver("overflow");
+          this.gameOver("quit");
         },
       }),
       makeButton(this, {
