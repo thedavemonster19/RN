@@ -8,9 +8,14 @@
     "dev": "vite",
     "build": "npm run sync:edge && tsc --noEmit && vite build",
     "preview": "vite preview",
-    "sync:edge": "node scripts/sync-edge-shared.mjs"
+    "sync:edge": "node scripts/sync-edge-shared.mjs",
+    "ios": "npm run build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@supabase/supabase-js": "^2.110.7",
     "phaser": "^3.90.0"
   },

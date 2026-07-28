@@ -16,7 +16,10 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
-        background: #0d1226;
+        /* The page behind the FIT-scaled canvas — on phone screens taller
+           than the 400:720 world this shows as letterbox bars, so it must be
+           the game's own cream, not the navy left over from the dark theme. */
+        background: #fff4da;
         overscroll-behavior: none;
         touch-action: none;
         -webkit-tap-highlight-color: transparent;
