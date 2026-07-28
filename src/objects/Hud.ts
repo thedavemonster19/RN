@@ -46,6 +46,7 @@ function paintDisc(img: Phaser.GameObjects.Image, spec: Spec): void {
  */
 export class Hud {
   private state: GameState;
+  private scene: Phaser.Scene;
 
   private sizeText: Phaser.GameObjects.Text;
   private scoreText: Phaser.GameObjects.Text;
@@ -63,6 +64,7 @@ export class Hud {
 
   constructor(scene: Phaser.Scene, state: GameState) {
     this.state = state;
+    this.scene = scene;
     const depth = 20;
 
     // Header: the score is the hero, the milestone is a quiet caption beneath
@@ -174,6 +176,64 @@ export class Hud {
       })
       .setOrigin(0.5)
       .setDepth(depth);
+  }
+
+  /**
+   * The WANTS queue visibly advances: the satisfied food pops and fades in
+   * the WANTS slot while the new craving rides up from THEN, and the next
+   * craving fades into the emptied THEN slot.
+   *
+   * Purely presentational, but load-bearing for feedback: when the monster
+   * asks for the same food twice in a row the panel is pixel-identical
+   * before and after, so without this a successful feed looked like nothing
+   * happened. Positions are tweened, never textures or display sizes —
+   * update() repaints those every frame and would fight any such tween.
+   */
+  animateCravingAdvance(satisfied: Spec): void {
+    const px = GAME.WIDTH - 30;
+    const wantY = 140;
+    const thenY = 206;
+
+    // the food it just ate, popping and fading out of the WANTS slot
+    const dia = panelDiameter(satisfied.tier);
+    const ghost = this.scene.add
+      .image(px, wantY, tierTexture(satisfied.tier))
+      .setDisplaySize(dia, dia)
+      .setDepth(21);
+    this.scene.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      scaleX: ghost.scaleX * 1.7,
+      scaleY: ghost.scaleY * 1.7,
+      duration: 340,
+      ease: "Quad.easeOut",
+      onComplete: () => ghost.destroy(),
+    });
+
+    // the new WANTS (already repainted by update) rides up from the THEN slot
+    this.scene.tweens.killTweensOf(this.wantDisc);
+    this.wantDisc.setY(thenY);
+    this.scene.tweens.add({
+      targets: this.wantDisc,
+      y: wantY,
+      duration: 300,
+      ease: "Back.easeOut",
+    });
+
+    // and the next craving settles into the THEN slot it vacated
+    const next = this.cravingDiscs[0];
+    if (next) {
+      this.scene.tweens.killTweensOf(next);
+      next.setAlpha(0).setY(thenY + 16);
+      this.scene.tweens.add({
+        targets: next,
+        alpha: 0.9,
+        y: thenY,
+        duration: 300,
+        delay: 130,
+        ease: "Quad.easeOut",
+      });
+    }
   }
 
   update(): void {

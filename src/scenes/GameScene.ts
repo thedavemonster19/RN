@@ -534,12 +534,17 @@ export class GameScene extends Phaser.Scene {
         // first replayed to a HIGHER score than the client actually scored —
         // and the server rejected the run for mismatching. Recording it here
         // keeps the log in the same order as the state changes.
+        const satisfied = this.state.craving;
         const result = this.state.feed(type, tier);
         // Only log a feed the state actually accepted, so the log can never
         // describe something that didn't happen.
         if (result) {
           this.saveDirty = true;
-    this.replayLog.push([Ev.Feed, tier]);
+          this.replayLog.push([Ev.Feed, tier]);
+          // The WANTS panel visibly advances even when the next ask is
+          // identical — without this, feeding a repeated craving looked
+          // like nothing happened.
+          this.hud.animateCravingAdvance(satisfied);
           this.applyFeed(result, type);
           // Feeding the last food empties the bin. Checked right here, at the
           // same moment the replay checks it, so the two agree.
